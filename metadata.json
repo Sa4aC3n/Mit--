@@ -1,0 +1,6 @@
+{
+  "name": "دليل ميت غمر",
+  "description": "دليل تليفونات وخدمات مركز ومدينة ميت غمر الشامل - مطاعم، أطباء، فنيين، كافيهات، مستشفيات ومصانع",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
