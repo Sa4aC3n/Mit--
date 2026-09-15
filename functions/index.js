@@ -100,7 +100,7 @@ exports.approveContribution = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError("invalid-argument", "معرف المساهمة مطلوب");
   }
 
-  const contribRef = db.collection("contributions").document(contributionId);
+  const contribRef = db.collection("contributions").doc(contributionId);
   const contribDoc = await contribRef.get();
 
   if (!contribDoc.exists) {
@@ -111,7 +111,7 @@ exports.approveContribution = functions.https.onCall(async (data, context) => {
 
   // 1. Idempotency Check: if already approved, return existing published business ID without recreating
   if (contribData.status === "APPROVED" && contribData.publishedBusinessId) {
-    const existingBizDoc = await db.collection("businesses").document(contribData.publishedBusinessId).get();
+    const existingBizDoc = await db.collection("businesses").doc(contribData.publishedBusinessId).get();
     return {
       success: true,
       alreadyApproved: true,
@@ -158,7 +158,7 @@ exports.approveContribution = functions.https.onCall(async (data, context) => {
 
   // Signal A: If contribution is SUGGEST_EDIT with target businessId
   if (contribData.businessId) {
-    const directDoc = await db.collection("businesses").document(contribData.businessId).get();
+    const directDoc = await db.collection("businesses").doc(contribData.businessId).get();
     if (directDoc.exists) {
       matchedBusinessId = directDoc.id;
       matchedBusinessData = directDoc.data();
@@ -241,7 +241,7 @@ exports.approveContribution = functions.https.onCall(async (data, context) => {
       return; // Already approved concurrently
     }
 
-    const bizRef = db.collection("businesses").document(targetBusinessId);
+    const bizRef = db.collection("businesses").doc(targetBusinessId);
     const existingBiz = await t.get(bizRef);
 
     let unifiedBusiness = {};
@@ -392,7 +392,7 @@ exports.rejectContribution = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError("invalid-argument", "معرف المساهمة مطلوب");
   }
 
-  const contribRef = db.collection("contributions").document(contributionId);
+  const contribRef = db.collection("contributions").doc(contributionId);
   const nowTs = Date.now();
   const serverTime = admin.firestore.FieldValue.serverTimestamp();
 
@@ -443,7 +443,7 @@ exports.archiveOrDeleteBusiness = functions.https.onCall(async (data, context) =
     throw new functions.https.HttpsError("invalid-argument", "معرف النشاط مطلوب");
   }
 
-  const bizRef = db.collection("businesses").document(businessId);
+  const bizRef = db.collection("businesses").doc(businessId);
   const nowTs = Date.now();
   const serverTime = admin.firestore.FieldValue.serverTimestamp();
 
@@ -492,7 +492,7 @@ exports.onReviewCreated = functions.firestore
     if (!review || !review.businessId || !review.rating) return null;
 
     const businessId = review.businessId;
-    const bizRef = db.collection("businesses").document(businessId);
+    const bizRef = db.collection("businesses").doc(businessId);
 
     return db.runTransaction(async (t) => {
       const bizDoc = await t.get(bizRef);

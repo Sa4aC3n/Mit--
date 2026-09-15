@@ -70,7 +70,8 @@ service cloud.firestore {
       allow write: if false;
 
       match /privatePayload/{docId} {
-        allow read, write: if isAdmin();
+        allow read: if isAdmin();
+        allow write: if false;
       }
     }
 
