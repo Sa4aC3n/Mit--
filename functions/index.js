@@ -341,7 +341,7 @@ exports.approveContribution = functions.https.onCall(async (data, context) => {
       serverSyncedAt: serverTime
     });
 
-    // Write multi-source provenance record
+    // Write public multi-source provenance record (no private rawPayloadJson)
     const sourceRef = db.collection("businessSources").doc("src_" + contributionId);
     t.set(sourceRef, {
       id: sourceRef.id,
@@ -349,7 +349,6 @@ exports.approveContribution = functions.https.onCall(async (data, context) => {
       sourceType: "USER_CONTRIBUTION",
       sourceId: contributionId,
       sourceName: "مساهمة مستخدم معتمدة",
-      rawPayloadJson: contribData.payloadJson || "",
       discoveredAt: contribData.createdAt || nowTs,
       lastCheckedAt: nowTs,
       lastVerifiedAt: nowTs,
@@ -359,6 +358,18 @@ exports.approveContribution = functions.https.onCall(async (data, context) => {
       updatedAt: nowTs,
       serverSyncedAt: serverTime
     });
+
+    // Quarantine private user request payload in protected subcollection (admin-only)
+    if (contribData.payloadJson || contribData.userEmail || contribData.userReason) {
+      const privatePayloadRef = sourceRef.collection("privatePayload").doc("request_details");
+      t.set(privatePayloadRef, {
+        rawPayloadJson: contribData.payloadJson || "",
+        submittedByUserId: contribData.userId || null,
+        userEmail: contribData.userEmail || null,
+        userReason: contribData.userReason || null,
+        createdAt: nowTs
+      });
+    }
   });
 
   return {

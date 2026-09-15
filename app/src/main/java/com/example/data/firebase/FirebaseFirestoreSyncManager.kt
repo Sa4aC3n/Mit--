@@ -117,6 +117,25 @@ object FirebaseFirestoreSyncManager {
     }
 
     /**
+     * Resiliently extracts updatedAt as epoch milliseconds across numeric Long, Firestore Timestamp, or Double.
+     * Guarantees unified Long type alignment between Android and Cloud Functions.
+     */
+    fun extractDocUpdatedAt(doc: DocumentSnapshot, defaultTs: Long = System.currentTimeMillis()): Long {
+        return try {
+            doc.getLong("updatedAt")
+                ?: doc.getTimestamp("updatedAt")?.toDate()?.time
+                ?: doc.getDouble("updatedAt")?.toLong()
+                ?: defaultTs
+        } catch (e: Exception) {
+            try {
+                doc.getTimestamp("updatedAt")?.toDate()?.time ?: defaultTs
+            } catch (e2: Exception) {
+                defaultTs
+            }
+        }
+    }
+
+    /**
      * Converts a BusinessEntity to a Firestore document map.
      */
     fun businessToFirestoreMap(biz: BusinessEntity): Map<String, Any?> {
@@ -395,6 +414,7 @@ object FirebaseFirestoreSyncManager {
 
     /**
      * Converts a BusinessSourceEntity to a Firestore map.
+     * Public provenance metadata ONLY. Raw payload is quarantined from public document.
      */
     fun sourceToFirestoreMap(source: BusinessSourceEntity): Map<String, Any?> {
         return mapOf(
@@ -404,7 +424,6 @@ object FirebaseFirestoreSyncManager {
             "sourceId" to source.sourceId,
             "sourceUrl" to source.sourceUrl,
             "sourceName" to source.sourceName,
-            "rawPayloadJson" to source.rawPayloadJson,
             "discoveredAt" to source.discoveredAt,
             "lastCheckedAt" to source.lastCheckedAt,
             "lastVerifiedAt" to source.lastVerifiedAt,
@@ -601,7 +620,7 @@ object FirebaseFirestoreSyncManager {
                 val toDeleteIds = mutableListOf<String>()
 
                 for (doc in snapshot.documents) {
-                    val docUpdatedAt = doc.getLong("updatedAt") ?: now
+                    val docUpdatedAt = extractDocUpdatedAt(doc, now)
                     if (docUpdatedAt > highestUpdatedAt) {
                         highestUpdatedAt = docUpdatedAt
                     }
@@ -637,7 +656,7 @@ object FirebaseFirestoreSyncManager {
 
                 // Deterministic composite cursor progression: only advance cursor after Room database insertion succeeds
                 if (lastVisibleDoc != null) {
-                    val pageLastUpdatedAt = lastVisibleDoc.getLong("updatedAt") ?: now
+                    val pageLastUpdatedAt = extractDocUpdatedAt(lastVisibleDoc, now)
                     val pageLastId = lastVisibleDoc.getString("id") ?: lastVisibleDoc.id
                     setLastSyncCursor(context, pageLastUpdatedAt, pageLastId)
                 }
@@ -830,8 +849,8 @@ object FirebaseFirestoreSyncManager {
                 "status" to "PENDING", // strictly PENDING on client creation
                 "moderatorNote" to contribution.moderatorNote,
                 "submissionSource" to contribution.submissionSource,
-                "createdAt" to FieldValue.serverTimestamp(),
-                "updatedAt" to FieldValue.serverTimestamp(),
+                "createdAt" to contribution.createdAt,
+                "updatedAt" to System.currentTimeMillis(),
                 "approvedAt" to null,
                 "approvedBy" to null,
                 "publishedBusinessId" to null
@@ -994,7 +1013,7 @@ object FirebaseFirestoreSyncManager {
                             "count" to sub.count
                         )
                     },
-                    "updatedAt" to FieldValue.serverTimestamp()
+                    "updatedAt" to System.currentTimeMillis()
                 )
                 batch.set(docRef, data, SetOptions.merge())
             }

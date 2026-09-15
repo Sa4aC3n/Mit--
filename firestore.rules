@@ -8,7 +8,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.admin == true;
+      return isAuthenticated() && ('admin' in request.auth.token) && request.auth.token.admin == true;
     }
 
     function isOwner(userId) {
@@ -19,7 +19,7 @@ service cloud.firestore {
     match /businesses/{businessId} {
       // Public directory read is strictly permitted for published businesses
       // Client query MUST include .whereEqualTo("isPublished", true)
-      allow read: if isAdmin() || (resource.data.isPublished == true);
+      allow read: if (resource != null && resource.data.isPublished == true) || isAdmin();
 
       // NO DIRECT CLIENT WRITES:
       // Normal users and admins are strictly forbidden from writing directly to businesses from Android.
@@ -29,7 +29,7 @@ service cloud.firestore {
 
     // 2. Legacy Activities Collection (Protected, read-only for published)
     match /activities/{activityId} {
-      allow read: if isAdmin() || (resource.data.isPublished == true);
+      allow read: if (resource != null && resource.data.isPublished == true) || isAdmin();
       allow write: if false;
     }
 
@@ -37,7 +37,7 @@ service cloud.firestore {
     match /contributions/{contribId} {
       // Normal users can only read their own submitted contributions
       // Admins can read all contributions for moderation
-      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow read: if isAdmin() || (isAuthenticated() && resource != null && resource.data.userId == request.auth.uid);
 
       // Normal users can ONLY create new requests with status 'PENDING' for their own account
       // They are strictly forbidden from setting approvedAt, approvedBy, or publishedBusinessId
@@ -62,16 +62,22 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // 5. Multi-Source Provenance & Business Sources (Read-only for clients)
+    // 5. Multi-Source Provenance & Business Sources
+    // Public directory metadata is accessible to all clients
+    // Private user request payloads are strictly quarantined in privatePayload subcollection (Admin only)
     match /businessSources/{sourceId} {
       allow read: if true;
       allow write: if false;
+
+      match /privatePayload/{docId} {
+        allow read, write: if isAdmin();
+      }
     }
 
     // 6. Reviews & Ratings Collection
     match /reviews/{reviewId} {
       // Only approved reviews are visible to the public; author or admin can view draft/own
-      allow read: if resource.data.status == 'APPROVED' || (isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin()));
+      allow read: if (resource != null && resource.data.status == 'APPROVED') || (isAuthenticated() && resource != null && resource.data.userId == request.auth.uid) || isAdmin();
 
       // Authenticated users can write their own reviews with 1-5 rating validation
       allow create: if isAuthenticated() &&
