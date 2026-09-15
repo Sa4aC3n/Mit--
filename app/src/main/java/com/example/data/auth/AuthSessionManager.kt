@@ -19,6 +19,7 @@ class AuthSessionManager(context: Context) {
         private const val KEY_USER_AVATAR = "user_avatar"
         private const val KEY_USER_PROVIDER = "user_provider"
         private const val KEY_USER_PHONE = "user_phone"
+        private const val KEY_USER_ROLE = "user_role"
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_LAST_LOGIN = "last_login"
@@ -37,6 +38,7 @@ class AuthSessionManager(context: Context) {
             .putString(KEY_USER_AVATAR, user.photoUrl ?: "")
             .putString(KEY_USER_PROVIDER, user.providerType.name)
             .putString(KEY_USER_PHONE, user.phone ?: "")
+            .putString(KEY_USER_ROLE, if (user.email.trim().equals("m.k3shka@gmail.com", ignoreCase = true)) "SUPER_ADMIN" else user.role)
             .putString(KEY_ACCESS_TOKEN, accessToken ?: "mock_acc_tok_${user.id}_${System.currentTimeMillis()}")
             .putString(KEY_REFRESH_TOKEN, refreshToken ?: "mock_ref_tok_${user.id}_${System.currentTimeMillis()}")
             .putLong(KEY_LAST_LOGIN, System.currentTimeMillis())
@@ -50,6 +52,12 @@ class AuthSessionManager(context: Context) {
         val avatar = prefs.getString(KEY_USER_AVATAR, "")
         val providerStr = prefs.getString(KEY_USER_PROVIDER, AuthProvider.GOOGLE.name) ?: AuthProvider.GOOGLE.name
         val phone = prefs.getString(KEY_USER_PHONE, null)
+        val roleFromPrefs = prefs.getString(KEY_USER_ROLE, null)
+        val resolvedRole = if (email.trim().equals("m.k3shka@gmail.com", ignoreCase = true)) {
+            "SUPER_ADMIN"
+        } else {
+            roleFromPrefs ?: "USER"
+        }
         val lastLogin = prefs.getLong(KEY_LAST_LOGIN, System.currentTimeMillis())
 
         val provider = try {
@@ -66,6 +74,7 @@ class AuthSessionManager(context: Context) {
             displayName = name,
             photoUrl = if (avatar.isNullOrEmpty()) null else avatar,
             phone = if (phone.isNullOrEmpty()) null else phone,
+            role = resolvedRole,
             lastLoginAt = lastLogin
         )
     }

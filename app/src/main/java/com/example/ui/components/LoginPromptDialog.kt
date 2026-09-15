@@ -74,9 +74,9 @@ fun LoginPromptDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Quick Login Buttons inside dialog
+                // Quick Login Buttons inside dialog (معطلة مؤقتاً)
                 Button(
-                    onClick = { onProviderLogin(AuthProvider.GOOGLE) },
+                    onClick = { /* معطل مؤقتاً */ },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4)),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth().testTag("dialog_login_google")
@@ -91,7 +91,7 @@ fun LoginPromptDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = { onProviderLogin(AuthProvider.FACEBOOK) },
+                        onClick = { /* معطل مؤقتاً */ },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1877F2)),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f).testTag("dialog_login_facebook")
@@ -100,7 +100,7 @@ fun LoginPromptDialog(
                     }
 
                     Button(
-                        onClick = { onProviderLogin(AuthProvider.MICROSOFT) },
+                        onClick = { /* معطل مؤقتاً */ },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A4EF)),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f).testTag("dialog_login_microsoft")

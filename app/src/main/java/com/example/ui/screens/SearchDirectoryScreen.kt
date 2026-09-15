@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.CategoryItem
 import com.example.data.model.SubcategoryItem
 import com.example.ui.components.BusinessCard
+import com.example.ui.components.EmptyStateView
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.DirectoryViewModel
 import com.example.ui.viewmodel.ScreenRoute
@@ -95,17 +96,13 @@ fun SearchDirectoryScreen(
             .background(SurfaceLight)
     ) {
         // --- 1. Header & Search Input Box ---
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(MetGhamrNavy, MetGhamrBlue)
-                    )
-                )
-                .padding(16.dp)
+        Surface(
+            color = SurfaceCard,
+            tonalElevation = 1.dp,
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight.copy(alpha = 0.6f)),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column {
+            Column(modifier = Modifier.padding(16.dp)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -115,15 +112,15 @@ fun SearchDirectoryScreen(
                         Text(
                             text = "محرك البحث والاكتشاف 🔍",
                             style = MaterialTheme.typography.titleMedium.copy(
-                                color = MetGhamrGold,
+                                color = SkyBlueDark,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
+                                fontSize = 13.sp
                             )
                         )
                         Text(
                             text = "دليل ميت غمر الشامل",
                             style = MaterialTheme.typography.titleLarge.copy(
-                                color = Color.White,
+                                color = TextPrimary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp
                             )
@@ -132,7 +129,7 @@ fun SearchDirectoryScreen(
 
                     // Filter Button with Badge
                     Surface(
-                        color = if (activeFiltersCount > 0) MetGhamrGold else Color.White.copy(alpha = 0.15f),
+                        color = if (activeFiltersCount > 0) SkyBluePrimary else SkyBlueContainer,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .clickable { showFilterBottomSheet = true }
@@ -145,7 +142,7 @@ fun SearchDirectoryScreen(
                             Icon(
                                 imageVector = Icons.Default.FilterList,
                                 contentDescription = "تصفية وترتيب",
-                                tint = if (activeFiltersCount > 0) MetGhamrNavy else Color.White,
+                                tint = if (activeFiltersCount > 0) Color.White else SkyBlueDark,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -153,7 +150,7 @@ fun SearchDirectoryScreen(
                                 text = if (activeFiltersCount > 0) "فلاتر ($activeFiltersCount)" else "تصفية",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (activeFiltersCount > 0) MetGhamrNavy else Color.White
+                                color = if (activeFiltersCount > 0) Color.White else SkyBlueDark
                             )
                         }
                     }
@@ -169,14 +166,14 @@ fun SearchDirectoryScreen(
                         Text(
                             text = "ابحث بالاسم، التخصص، الهاتف، أو المنطقة...",
                             fontSize = 13.sp,
-                            color = TextSecondary
+                            color = TextMuted
                         )
                     },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "بحث",
-                            tint = MetGhamrNavy
+                            tint = SkyBluePrimary
                         )
                     },
                     trailingIcon = {
@@ -185,7 +182,7 @@ fun SearchDirectoryScreen(
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "مسح الكلمة",
-                                    tint = Color.Gray
+                                    tint = TextSecondary
                                 )
                             }
                         }
@@ -202,10 +199,12 @@ fun SearchDirectoryScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedBorderColor = MetGhamrGold,
-                        unfocusedBorderColor = Color.Transparent
+                        focusedContainerColor = SurfaceLight,
+                        unfocusedContainerColor = SurfaceLight,
+                        focusedBorderColor = SkyBluePrimary,
+                        unfocusedBorderColor = BorderLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -498,63 +497,13 @@ fun SearchDirectoryScreen(
                 }
 
                 if (businesses.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FindInPage,
-                                contentDescription = null,
-                                tint = TextSecondary,
-                                modifier = Modifier.size(56.dp)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "لم نجد نتائج متطابقة في ميت غمر",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
-                                )
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "لم تجد النشاط الذي تبحث عنه؟ يمكنك إضافته الآن مجاناً وسيظهر للجميع بعد المراجعة.",
-                                style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary),
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Button(
-                                    onClick = {
-                                        viewModel.requestProtectedAction {
-                                            viewModel.navigateTo(ScreenRoute.AddBusiness.route)
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MetGhamrNavy),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Icon(Icons.Default.AddBusiness, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("أضف نشاطاً جديداً ➕")
-                                }
-
-                                OutlinedButton(
-                                    onClick = { viewModel.clearAllFilters() },
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Text("ضبط الفلاتر")
-                                }
-                            }
-                        }
-                    }
+                    EmptyStateView(
+                        icon = Icons.Default.SearchOff,
+                        title = "لم نجد نتائج متطابقة في ميت غمر",
+                        description = "لم تجد النشاط الذي تبحث عنه؟ يمكنك إعادة ضبط الفلاتر أو إضافة النشاط إلى الدليل مجاناً ليظهر للجميع بعد المراجعة.",
+                        actionButtonText = "إعادة ضبط الفلاتر",
+                        onActionClick = { viewModel.clearAllFilters() }
+                    )
                 } else {
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(12.dp),

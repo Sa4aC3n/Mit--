@@ -12,7 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,6 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.BuildConfig
+import com.example.ui.components.AppUpdateDialog
 import com.example.ui.theme.*
 
 @Composable
@@ -30,6 +32,7 @@ fun AboutAppScreen(
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
+    var showAppUpdateDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -70,10 +73,12 @@ fun AboutAppScreen(
         Surface(
             color = MetGhamrGold.copy(alpha = 0.15f),
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.padding(top = 4.dp)
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .clickable { showAppUpdateDialog = true }
         ) {
             Text(
-                text = "الإصدار v1.0.0 (الرقمي الرسمي)",
+                text = "الإصدار v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) • تحقق من التحديث 🔄",
                 color = MetGhamrNavy,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -154,53 +159,6 @@ fun AboutAppScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Support & Info Action List
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(8.dp)) {
-                ListItem(
-                    headlineContent = { Text("تواصل معنا ودعم Ajilika", fontSize = 13.sp, fontWeight = FontWeight.Bold) },
-                    leadingContent = { Icon(Icons.Default.Email, contentDescription = null, tint = MetGhamrTeal) },
-                    modifier = Modifier.clickable {
-                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:m.k3shka@gmail.com"))
-                        context.startActivity(intent)
-                    }
-                )
-                HorizontalDivider(color = BorderLight)
-                ListItem(
-                    headlineContent = { Text("الإبلاغ عن بيانات منشأة غير صحيحة", fontSize = 13.sp, fontWeight = FontWeight.Bold) },
-                    leadingContent = { Icon(Icons.Default.ReportProblem, contentDescription = null, tint = MetGhamrRed) },
-                    modifier = Modifier.clickable {
-                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:m.k3shka@gmail.com?subject=Report_Issue"))
-                        context.startActivity(intent)
-                    }
-                )
-                HorizontalDivider(color = BorderLight)
-                ListItem(
-                    headlineContent = { Text("سياسة الخصوصية وحماية البيانات", fontSize = 13.sp, fontWeight = FontWeight.Bold) },
-                    leadingContent = { Icon(Icons.Default.Security, contentDescription = null, tint = VerifiedBlue) },
-                    modifier = Modifier.clickable {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ajilika.tech/privacy"))
-                        context.startActivity(intent)
-                    }
-                )
-                HorizontalDivider(color = BorderLight)
-                ListItem(
-                    headlineContent = { Text("شروط وأحكام الاستخدام", fontSize = 13.sp, fontWeight = FontWeight.Bold) },
-                    leadingContent = { Icon(Icons.Default.Gavel, contentDescription = null, tint = MetGhamrNavy) },
-                    modifier = Modifier.clickable {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ajilika.tech/terms"))
-                        context.startActivity(intent)
-                    }
-                )
-            }
-        }
-
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = "حقوق الطبع والنشر © 2026 Ajilika Technologies. جميع الحقوق محفوظة.",
@@ -209,5 +167,11 @@ fun AboutAppScreen(
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    if (showAppUpdateDialog) {
+        AppUpdateDialog(
+            onDismiss = { showAppUpdateDialog = false }
+        )
     }
 }

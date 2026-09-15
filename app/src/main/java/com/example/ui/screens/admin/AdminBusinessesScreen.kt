@@ -25,12 +25,20 @@ fun AdminBusinessesScreen(viewModel: DirectoryViewModel) {
     val allBusinesses by viewModel.allBusinessesAdmin.collectAsState(initial = emptyList())
     var searchQuery by remember { mutableStateOf("") }
     var filterActiveOnly by remember { mutableStateOf(false) }
+    var showSmartAddDialog by remember { mutableStateOf(false) }
 
     val filteredList = remember(allBusinesses, searchQuery, filterActiveOnly) {
         allBusinesses.filter {
             (searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true) || it.phone.contains(searchQuery)) &&
                     (!filterActiveOnly || it.isActive)
         }
+    }
+
+    if (showSmartAddDialog) {
+        SmartExcelTemplateDialog(
+            viewModel = viewModel,
+            onDismiss = { showSmartAddDialog = false }
+        )
     }
 
     AdminLayout(
@@ -67,26 +75,42 @@ fun AdminBusinessesScreen(viewModel: DirectoryViewModel) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Filter Chips
+            // Filter Chips & Smart Add Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "إجمالي الأنشطة: ${filteredList.size}",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    color = MetGhamrNavy
-                )
-                FilterChip(
-                    selected = filterActiveOnly,
-                    onClick = { filterActiveOnly = !filterActiveOnly },
-                    label = { Text("الأنشطة النشطة فقط", fontSize = 11.sp) },
-                    leadingIcon = if (filterActiveOnly) {
-                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                    } else null
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "الأنشطة (${filteredList.size})",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = MetGhamrNavy
+                    )
+                    FilterChip(
+                        selected = filterActiveOnly,
+                        onClick = { filterActiveOnly = !filterActiveOnly },
+                        label = { Text("النشطة فقط", fontSize = 11.sp) },
+                        leadingIcon = if (filterActiveOnly) {
+                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        } else null
+                    )
+                }
+
+                Button(
+                    onClick = { showSmartAddDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = MetGhamrNavy),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Icon(Icons.Default.AddCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("قالب Excel / إضافة نشاط", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))

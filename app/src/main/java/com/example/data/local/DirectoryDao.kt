@@ -3,9 +3,13 @@ package com.example.data.local
 import androidx.room.*
 import com.example.data.model.AuditLogEntity
 import com.example.data.model.BusinessEntity
+import com.example.data.model.BusinessSourceEntity
 import com.example.data.model.ContributionDraftEntity
 import com.example.data.model.FavoriteEntity
+import com.example.data.model.FieldAuditHistoryEntity
+import com.example.data.model.MergeHistoryEntity
 import com.example.data.model.NotificationEntity
+import com.example.data.model.RawDiscoveredRecordEntity
 import com.example.data.model.ReviewEntity
 import com.example.data.model.ReviewHelpfulEntity
 import com.example.data.model.ReviewReportEntity
@@ -305,4 +309,63 @@ interface DirectoryDao {
 
     @Query("SELECT * FROM audit_logs")
     suspend fun getAllAuditLogsDirect(): List<AuditLogEntity>
+
+    // --- MULTI-SOURCE & PROVENANCE QUERIES ---
+    @Query("SELECT * FROM business_sources WHERE businessId = :businessId AND isActive = 1 ORDER BY isOfficial DESC, sourceConfidence DESC")
+    fun getSourcesForBusiness(businessId: String): Flow<List<BusinessSourceEntity>>
+
+    @Query("SELECT * FROM business_sources WHERE businessId = :businessId AND isActive = 1 ORDER BY isOfficial DESC, sourceConfidence DESC")
+    suspend fun getSourcesForBusinessDirect(businessId: String): List<BusinessSourceEntity>
+
+    @Query("SELECT * FROM business_sources WHERE isActive = 1")
+    suspend fun getAllBusinessSourcesDirect(): List<BusinessSourceEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBusinessSource(source: BusinessSourceEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBusinessSources(sources: List<BusinessSourceEntity>)
+
+    @Query("DELETE FROM business_sources WHERE businessId = :businessId")
+    suspend fun deleteSourcesForBusiness(businessId: String)
+
+    // --- FIELD AUDIT HISTORY QUERIES ---
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFieldAudit(audit: FieldAuditHistoryEntity)
+
+    @Query("SELECT * FROM field_audit_history WHERE businessId = :businessId ORDER BY changedAt DESC")
+    fun getFieldAuditsForBusiness(businessId: String): Flow<List<FieldAuditHistoryEntity>>
+
+    @Query("SELECT * FROM field_audit_history ORDER BY changedAt DESC LIMIT 100")
+    fun getRecentFieldAudits(): Flow<List<FieldAuditHistoryEntity>>
+
+    // --- MERGE HISTORY & ROLLBACK QUERIES ---
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMergeHistory(merge: MergeHistoryEntity)
+
+    @Query("SELECT * FROM merge_history ORDER BY mergedAt DESC")
+    fun getAllMergeHistories(): Flow<List<MergeHistoryEntity>>
+
+    @Query("SELECT * FROM merge_history ORDER BY mergedAt DESC")
+    suspend fun getAllMergeHistoriesDirect(): List<MergeHistoryEntity>
+
+    @Query("SELECT * FROM merge_history WHERE id = :id LIMIT 1")
+    suspend fun getMergeHistoryById(id: String): MergeHistoryEntity?
+
+    @Update
+    suspend fun updateMergeHistory(merge: MergeHistoryEntity)
+
+    // --- RAW DISCOVERED STAGING QUERIES ---
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRawDiscoveredRecords(records: List<RawDiscoveredRecordEntity>)
+
+    @Query("SELECT * FROM raw_discovered_records WHERE jobId = :jobId")
+    suspend fun getRawRecordsForJob(jobId: String): List<RawDiscoveredRecordEntity>
+
+    // --- CORRUPTED / DUMMY IMPORTED RECORDS CLEANUP ---
+    @Query("DELETE FROM businesses WHERE name LIKE 'نشاط مستورد%' OR (phone LIKE '050000000%' AND description LIKE '%الاستيراد الجماعي Excel%')")
+    suspend fun deleteCorruptedImportedBusinesses(): Int
+
+    @Query("SELECT COUNT(*) FROM businesses WHERE name LIKE 'نشاط مستورد%' OR (phone LIKE '050000000%' AND description LIKE '%الاستيراد الجماعي Excel%')")
+    suspend fun getCorruptedImportedBusinessesCount(): Int
 }

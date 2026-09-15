@@ -11,39 +11,45 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 
 private val DarkColorScheme = darkColorScheme(
-    primary = MetGhamrGoldLight,
-    onPrimary = MetGhamrNavy,
-    primaryContainer = MetGhamrBlue,
+    primary = SkyBlueLight,
+    onPrimary = Color(0xFF0F172A),
+    primaryContainer = SkyBlueDark,
     onPrimaryContainer = Color.White,
-    secondary = MetGhamrGold,
-    onSecondary = MetGhamrNavy,
-    tertiary = MetGhamrTeal,
-    background = MetGhamrNavy,
-    surface = MetGhamrNavyLight,
-    surfaceVariant = MetGhamrNavyLight,
+    secondary = WatermelonRedLight,
+    onSecondary = Color(0xFF0F172A),
+    secondaryContainer = WatermelonRedDark,
+    onSecondaryContainer = Color.White,
+    tertiary = LettuceGreenLight,
+    onTertiary = Color(0xFF0F172A),
+    background = Color(0xFF0F172A),
+    surface = Color(0xFF1E293B),
+    surfaceVariant = Color(0xFF334155),
     onBackground = Color.White,
     onSurface = Color.White,
     onSurfaceVariant = TextMuted,
-    outline = BorderLight.copy(alpha = 0.2f),
-    error = ErrorRed
+    outline = Color(0xFF475569),
+    error = WatermelonRedDark
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = MetGhamrNavy,
+    primary = SkyBluePrimary,
     onPrimary = Color.White,
-    primaryContainer = MetGhamrSubtle,
-    onPrimaryContainer = MetGhamrNavy,
-    secondary = MetGhamrGold,
+    primaryContainer = SkyBlueContainer,
+    onPrimaryContainer = SkyBlueDeep,
+    secondary = WatermelonRed,
     onSecondary = Color.White,
-    tertiary = MetGhamrTeal,
+    secondaryContainer = WatermelonRedBg,
+    onSecondaryContainer = WatermelonRedDark,
+    tertiary = LettuceGreen,
+    onTertiary = Color.White,
     background = SurfaceLight,
     surface = SurfaceCard,
-    surfaceVariant = SurfaceSubtle,
+    surfaceVariant = SkyBlueSoftBg,
     onBackground = TextPrimary,
     onSurface = TextPrimary,
     onSurfaceVariant = TextSecondary,
     outline = BorderLight,
-    error = ErrorRed
+    error = WatermelonRedDark
 )
 
 @Composable
@@ -64,4 +70,5 @@ fun MetGhamrDirectoryTheme(
         )
     }
 }
+
 

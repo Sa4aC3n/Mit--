@@ -3,7 +3,9 @@ package com.example.ui.components
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,10 +24,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,6 +39,25 @@ import coil.compose.AsyncImage
 import com.example.data.model.AuthProvider
 import com.example.data.model.BusinessEntity
 import com.example.ui.theme.*
+import com.example.util.WorkingHoursUtils
+
+fun getCategoryPastelColors(categoryId: String): Pair<Color, Color> {
+    return when (categoryId) {
+        "cat_restaurants" -> Pair(PastelWatermelon, PastelWatermelonIcon)
+        "cat_cafes" -> Pair(PastelPeach, PastelPeachIcon)
+        "cat_doctors", "cat_medical_centers" -> Pair(PastelSkyBlue, PastelSkyBlueIcon)
+        "cat_hospitals" -> Pair(PastelLightBlue, PastelLightBlueIcon)
+        "cat_pharmacies", "cat_radiology" -> Pair(Color(0xFFEDE9FE), Color(0xFF6366F1))
+        "cat_shops" -> Pair(PastelGreen, PastelGreenIcon)
+        "cat_technicians", "cat_automotive" -> Pair(PastelMint, PastelMintIcon)
+        "cat_factories", "cat_companies" -> Pair(PastelYellow, PastelYellowIcon)
+        "cat_clubs", "cat_home_events" -> Pair(PastelPeach, PastelPeachIcon)
+        "cat_education", "cat_schools", "cat_universities", "cat_libraries", "cat_syndicates" -> Pair(PastelLavender, PastelLavenderIcon)
+        "cat_banks", "cat_government" -> Pair(Color(0xFFE0F2FE), Color(0xFF0284C7))
+        "cat_charities" -> Pair(PastelWatermelon, PastelWatermelonIcon)
+        else -> Pair(SkyBlueContainer, SkyBlueDark)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,15 +65,21 @@ fun MetGhamrTopAppBar(
     title: String = "دليل ميت غمر",
     isSecondaryScreen: Boolean = false,
     unreadNotifCount: Int = 0,
+    showAdminControls: Boolean = false,
+    syncBadgeText: String? = null,
+    isSyncing: Boolean = false,
+    onSyncClick: (() -> Unit)? = null,
     onBackClick: (() -> Unit)? = null,
     onNotifClick: () -> Unit = {},
     onAdminClick: () -> Unit = {},
     onAboutClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {}
+    onProfileClick: () -> Unit = {},
+    onLockClick: (() -> Unit)? = null
 ) {
     Surface(
-        color = MetGhamrNavy,
-        tonalElevation = 4.dp,
+        color = SurfaceCard,
+        tonalElevation = 1.dp,
+        border = BorderStroke(1.dp, BorderLight.copy(alpha = 0.7f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         if (isSecondaryScreen) {
@@ -59,7 +88,7 @@ fun MetGhamrTopAppBar(
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleMedium.copy(
-                            color = Color.White,
+                            color = TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 17.sp
                         ),
@@ -76,12 +105,24 @@ fun MetGhamrTopAppBar(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "رجوع",
-                                tint = Color.White
+                                tint = TextPrimary
                             )
                         }
                     }
                 },
                 actions = {
+                    if (showAdminControls && onLockClick != null) {
+                        IconButton(
+                            onClick = onLockClick,
+                            modifier = Modifier.testTag("top_bar_lock_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "قفل التطبيق برمز PIN",
+                                tint = SkyBluePrimary
+                            )
+                        }
+                    }
                     IconButton(
                         onClick = onAboutClick,
                         modifier = Modifier.testTag("top_bar_about_button")
@@ -89,14 +130,15 @@ fun MetGhamrTopAppBar(
                         Icon(
                             imageVector = Icons.Default.Info,
                             contentDescription = "عن التطبيق",
-                            tint = MetGhamrGoldLight
+                            tint = TextSecondary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MetGhamrNavy,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = SurfaceCard,
+                    titleContentColor = TextPrimary,
+                    navigationIconContentColor = TextPrimary,
+                    actionIconContentColor = TextSecondary
                 )
             )
         } else {
@@ -118,32 +160,32 @@ fun MetGhamrTopAppBar(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(40.dp)
                             .clip(CircleShape)
-                            .background(MetGhamrGold),
+                            .background(SkyBluePrimary),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.LocationOn,
                             contentDescription = "شعار ميت غمر",
-                            tint = MetGhamrNavy,
+                            tint = Color.White,
                             modifier = Modifier.size(22.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
                             text = title,
                             style = MaterialTheme.typography.titleMedium.copy(
-                                color = Color.White,
+                                color = TextPrimary,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
+                                fontSize = 17.sp
                             )
                         )
                         Text(
-                            text = "Ajilika — ميت غمر",
+                            text = "دليل الخدمات والأعمال الذكي",
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = MetGhamrGoldLight,
+                                color = TextSecondary,
                                 fontSize = 11.sp
                             )
                         )
@@ -151,16 +193,65 @@ fun MetGhamrTopAppBar(
                 }
 
                 // Action Icons
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onAdminClick,
-                        modifier = Modifier.testTag("admin_dashboard_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.BarChart,
-                            contentDescription = "لوحة التحكم",
-                            tint = MetGhamrGold
-                        )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    if (syncBadgeText != null) {
+                        Surface(
+                            color = SkyBlueContainer,
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .clickable(enabled = onSyncClick != null) { onSyncClick?.invoke() }
+                                .testTag("top_bar_sync_badge")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isSyncing) CalmGold else LettuceGreen)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = syncBadgeText,
+                                    color = SkyBlueDark,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(2.dp))
+                    }
+
+                    if (showAdminControls) {
+                        if (onLockClick != null) {
+                            IconButton(
+                                onClick = onLockClick,
+                                modifier = Modifier.testTag("top_bar_lock_quick_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "قفل التطبيق",
+                                    tint = SkyBluePrimary
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = onAdminClick,
+                            modifier = Modifier.testTag("admin_dashboard_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.BarChart,
+                                contentDescription = "لوحة التحكم",
+                                tint = SkyBlueDark
+                            )
+                        }
                     }
 
                     Box {
@@ -169,9 +260,9 @@ fun MetGhamrTopAppBar(
                             modifier = Modifier.testTag("notifications_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Notifications,
+                                imageVector = Icons.Outlined.Notifications,
                                 contentDescription = "الإشعارات",
-                                tint = Color.White
+                                tint = TextPrimary
                             )
                         }
                         if (unreadNotifCount > 0) {
@@ -179,7 +270,7 @@ fun MetGhamrTopAppBar(
                                 modifier = Modifier
                                     .size(18.dp)
                                     .clip(CircleShape)
-                                    .background(MetGhamrRed)
+                                    .background(WatermelonRed)
                                     .align(Alignment.TopEnd),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -197,11 +288,20 @@ fun MetGhamrTopAppBar(
                         onClick = onProfileClick,
                         modifier = Modifier.testTag("profile_button")
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.AccountCircle,
-                            contentDescription = "الحساب",
-                            tint = Color.White
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(SkyBlueContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Person,
+                                contentDescription = "الحساب",
+                                tint = SkyBlueDark,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -214,47 +314,63 @@ fun MetGhamrBottomNavBar(
     currentRoute: String,
     onNavigate: (String) -> Unit
 ) {
-    NavigationBar(
-        containerColor = SurfaceCard,
-        tonalElevation = 8.dp,
-        modifier = Modifier.navigationBarsPadding()
+    Surface(
+        color = SurfaceCard,
+        tonalElevation = 6.dp,
+        border = BorderStroke(1.dp, BorderLight.copy(alpha = 0.6f)),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        val navItems = listOf(
-            NavTab("home", "الرئيسية", Icons.Default.Home, Icons.Outlined.Home),
-            NavTab("categories", "التصنيفات", Icons.Default.GridView, Icons.Outlined.GridView),
-            NavTab("search", "البحث", Icons.Default.Search, Icons.Outlined.Search),
-            NavTab("favorites", "المفضلة", Icons.Default.Favorite, Icons.Outlined.FavoriteBorder),
-            NavTab("profile", "حسابي", Icons.Default.Person, Icons.Outlined.Person)
-        )
-
-        navItems.forEach { tab ->
-            val isSelected = currentRoute == tab.route
-            NavigationBarItem(
-                selected = isSelected,
-                onClick = { onNavigate(tab.route) },
-                icon = {
-                    Icon(
-                        imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                        contentDescription = tab.label
-                    )
-                },
-                label = {
-                    Text(
-                        text = tab.label,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                        )
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MetGhamrNavy,
-                    selectedTextColor = MetGhamrNavy,
-                    unselectedIconColor = TextSecondary,
-                    unselectedTextColor = TextSecondary,
-                    indicatorColor = MetGhamrGoldLight.copy(alpha = 0.35f)
-                ),
-                modifier = Modifier.testTag("nav_item_${tab.route}")
+        NavigationBar(
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp,
+            modifier = Modifier.navigationBarsPadding()
+        ) {
+            val navItems = listOf(
+                NavTab("home", "الرئيسية", Icons.Default.Home, Icons.Outlined.Home),
+                NavTab("categories", "التصنيفات", Icons.Default.GridView, Icons.Outlined.GridView),
+                NavTab("emergency", "الطوارئ", Icons.Default.Phone, Icons.Outlined.Phone),
+                NavTab("search", "البحث", Icons.Default.Search, Icons.Outlined.Search),
+                NavTab("favorites", "المفضلة", Icons.Default.Favorite, Icons.Outlined.FavoriteBorder),
+                NavTab("profile", "حسابي", Icons.Default.Person, Icons.Outlined.Person)
             )
+
+            navItems.forEach { tab ->
+                val isSelected = currentRoute == tab.route
+                val isEmergency = tab.route == "emergency"
+                val activeIconColor = if (isEmergency) WatermelonRedDark else SkyBluePrimary
+                val activeTextColor = if (isEmergency) WatermelonRedDark else SkyBlueDark
+                val activeIndicator = if (isEmergency) WatermelonRedBg else SkyBlueContainer
+
+                NavigationBarItem(
+                    selected = isSelected,
+                    onClick = { onNavigate(tab.route) },
+                    icon = {
+                        Icon(
+                            imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                            contentDescription = tab.label
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = tab.label,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = activeIconColor,
+                        selectedTextColor = activeTextColor,
+                        unselectedIconColor = TextSecondary,
+                        unselectedTextColor = TextSecondary,
+                        indicatorColor = activeIndicator
+                    ),
+                    modifier = Modifier.testTag("nav_item_${tab.route}")
+                )
+            }
         }
     }
 }
@@ -275,11 +391,13 @@ fun BusinessCard(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val (catBg, catIconColor) = getCategoryPastelColors(business.categoryId)
 
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+        border = BorderStroke(1.dp, BorderLight),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
         modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() }
@@ -294,13 +412,13 @@ fun BusinessCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        color = MetGhamrNavy.copy(alpha = 0.08f),
+                        color = catBg,
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
                             text = business.categoryName,
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = MetGhamrNavy,
+                                color = catIconColor,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp
                             ),
@@ -313,20 +431,20 @@ fun BusinessCard(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(VerifiedBlue.copy(alpha = 0.1f))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(SkyBlueContainer)
+                                .padding(horizontal = 6.dp, vertical = 3.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Verified,
                                 contentDescription = "موثق",
-                                tint = VerifiedBlue,
-                                modifier = Modifier.size(14.dp)
+                                tint = SkyBlueDark,
+                                modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = "موثق",
-                                color = VerifiedBlue,
+                                color = SkyBlueDark,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -341,7 +459,7 @@ fun BusinessCard(
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = "المفضلة",
-                        tint = if (isFavorite) MetGhamrRed else Color.Gray,
+                        tint = if (isFavorite) WatermelonRed else TextMuted,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -380,8 +498,8 @@ fun BusinessCard(
                 Icon(
                     imageVector = Icons.Default.Place,
                     contentDescription = "العنوان",
-                    tint = MetGhamrTeal,
-                    modifier = Modifier.size(16.dp)
+                    tint = SkyBluePrimary,
+                    modifier = Modifier.size(15.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
@@ -395,7 +513,7 @@ fun BusinessCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Hours & Rating Row
             Row(
@@ -404,22 +522,31 @@ fun BusinessCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Working Status Chip
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(if (business.isOpenNow) OpenGreen else ClosedRed)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (business.isOpenNow) "مفتوح الآن (${business.workingHours})" else "مغلق حالياً",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = if (business.isOpenNow) OpenGreen else ClosedRed,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
+                val statusInfo = WorkingHoursUtils.getStatusInfo(business.workingHours)
+                Surface(
+                    color = statusInfo.containerColor,
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(statusInfo.dotColor)
                         )
-                    )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = statusInfo.label,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = statusInfo.contentColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
                 }
 
                 // Rating
@@ -427,10 +554,10 @@ fun BusinessCard(
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = "التقييم",
-                        tint = MetGhamrGold,
-                        modifier = Modifier.size(16.dp)
+                        tint = CalmGold,
+                        modifier = Modifier.size(15.dp)
                     )
-                    Spacer(modifier = Modifier.width(2.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "${business.ratingAverage} (${business.ratingCount})",
                         style = MaterialTheme.typography.bodySmall.copy(
@@ -457,7 +584,7 @@ fun BusinessCard(
                         val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${business.phone}"))
                         context.startActivity(intent)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MetGhamrNavy),
+                    colors = ButtonDefaults.buttonColors(containerColor = SkyBluePrimary),
                     shape = RoundedCornerShape(10.dp),
                     contentPadding = PaddingValues(vertical = 6.dp, horizontal = 12.dp),
                     modifier = Modifier.weight(1f)
@@ -466,7 +593,7 @@ fun BusinessCard(
                         imageVector = Icons.Default.Call,
                         contentDescription = "اتصال",
                         tint = Color.White,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(text = "اتصال", fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -490,11 +617,22 @@ fun BusinessCard(
                             imageVector = Icons.Default.Chat,
                             contentDescription = "واتساب",
                             tint = Color(0xFF25D366),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(text = "واتساب", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
+                }
+
+                // Details Button
+                OutlinedButton(
+                    onClick = onClick,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = SkyBlueDark),
+                    border = ButtonDefaults.outlinedToolboxBorder(color = SkyBlueLight),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(vertical = 6.dp, horizontal = 10.dp)
+                ) {
+                    Text(text = "التفاصيل", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -518,7 +656,7 @@ fun RatingStarsDisplay(rating: Float, modifier: Modifier = Modifier) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MetGhamrGold,
+                tint = CalmGold,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -543,7 +681,7 @@ fun InteractiveRatingSelector(
                 Icon(
                     imageVector = if (i <= currentRating) Icons.Default.Star else Icons.Default.StarBorder,
                     contentDescription = "تقييم $i",
-                    tint = MetGhamrGold,
+                    tint = CalmGold,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -571,6 +709,40 @@ fun ProviderBadge(provider: AuthProvider) {
 }
 
 @Composable
+fun SuperAdminBadge(modifier: Modifier = Modifier) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                Brush.horizontalGradient(
+                    listOf(Color(0xFF0F172A), Color(0xFF1E3A8A))
+                )
+            )
+            .border(
+                1.dp,
+                Color(0xFFD4AF37),
+                RoundedCornerShape(8.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Icon(
+            Icons.Default.Stars,
+            contentDescription = null,
+            tint = Color(0xFFFFD700),
+            modifier = Modifier.size(14.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = "مدير النظام الأعلى (Super Admin)",
+            color = Color(0xFFFFD700),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
 fun ProviderBadge(providerName: String) {
     val provider = try {
         AuthProvider.valueOf(providerName.uppercase())
@@ -591,6 +763,7 @@ fun StatMetricCard(
     Card(
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.08f)),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.2f)),
         modifier = modifier
     ) {
         Row(
@@ -637,7 +810,8 @@ fun SimpleBarChart(
 
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+        border = BorderStroke(1.dp, BorderLight),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -673,16 +847,16 @@ fun SimpleBarChart(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(16.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(BorderLight)
+                                .height(14.dp)
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(SkyBlueContainer)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxHeight()
                                     .fillMaxWidth(ratio)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MetGhamrTeal)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(SkyBluePrimary)
                             )
                         }
 
@@ -692,7 +866,7 @@ fun SimpleBarChart(
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp,
-                                color = MetGhamrNavy
+                                color = SkyBlueDark
                             ),
                             modifier = Modifier.width(30.dp),
                             textAlign = TextAlign.End
@@ -714,7 +888,8 @@ fun CompactFeaturedCard(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, BorderLight),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
         modifier = Modifier
             .width(220.dp)
             .clickable { onClick() }
@@ -727,12 +902,12 @@ fun CompactFeaturedCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    color = MetGhamrGoldLight.copy(alpha = 0.2f),
+                    color = SkyBlueContainer,
                     shape = RoundedCornerShape(6.dp)
                 ) {
                     Text(
                         text = "مميز ⭐",
-                        color = MetGhamrGold,
+                        color = SkyBlueDark,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -746,7 +921,7 @@ fun CompactFeaturedCard(
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = "المفضلة",
-                        tint = if (isFavorite) MetGhamrRed else Color.Gray,
+                        tint = if (isFavorite) WatermelonRed else TextMuted,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -786,7 +961,7 @@ fun CompactFeaturedCard(
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = null,
-                        tint = MetGhamrGold,
+                        tint = CalmGold,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(2.dp))
@@ -802,7 +977,7 @@ fun CompactFeaturedCard(
                     Icon(
                         imageVector = Icons.Default.Place,
                         contentDescription = null,
-                        tint = TextSecondary,
+                        tint = SkyBluePrimary,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(2.dp))
@@ -915,4 +1090,80 @@ fun SkeletonBusinessCard() {
         }
     }
 }
+
+@Composable
+fun EmptyStateView(
+    icon: ImageVector = Icons.Default.SearchOff,
+    title: String,
+    description: String,
+    actionButtonText: String? = null,
+    onActionClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(SkyBlueContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = SkyBlueDark,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    fontSize = 17.sp
+                ),
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    color = TextSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp
+                ),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            if (actionButtonText != null && onActionClick != null) {
+                Spacer(modifier = Modifier.height(20.dp))
+                Button(
+                    onClick = onActionClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = SkyBluePrimary),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = actionButtonText,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+    }
+}
+
+
 

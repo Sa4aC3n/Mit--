@@ -205,11 +205,27 @@ fun SuggestEditScreen(
                                 readOnly = true,
                                 label = { Text("نوع البيان") },
                                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = MetGhamrNavy) },
-                                trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+                                trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MetGhamrNavy) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.Black,
+                                    unfocusedTextColor = Color.Black,
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White,
+                                    focusedBorderColor = MetGhamrNavy,
+                                    unfocusedBorderColor = BorderLight,
+                                    focusedLabelColor = MetGhamrNavy,
+                                    unfocusedLabelColor = TextSecondary
+                                ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { fieldDropdownExpanded = true }
                                     .testTag("suggest_edit_field_picker")
+                            )
+
+                            // Overlay clickable box to reliably trigger dropdown
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clickable { fieldDropdownExpanded = true }
                             )
 
                             DropdownMenu(
@@ -221,7 +237,7 @@ fun SuggestEditScreen(
                             ) {
                                 editableFields.forEach { pair ->
                                     DropdownMenuItem(
-                                        text = { Text(pair.first, fontWeight = FontWeight.SemiBold) },
+                                        text = { Text(pair.first, color = Color.Black, fontWeight = FontWeight.SemiBold) },
                                         onClick = {
                                             selectedFieldPair = pair
                                             fieldDropdownExpanded = false
@@ -262,6 +278,19 @@ fun SuggestEditScreen(
                             isError = newValueError != null,
                             supportingText = { if (newValueError != null) Text(newValueError!!, color = MetGhamrRed) },
                             leadingIcon = { Icon(Icons.Default.Check, contentDescription = null, tint = MetGhamrGreen) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.Black,
+                                unfocusedTextColor = Color.Black,
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White,
+                                focusedBorderColor = MetGhamrNavy,
+                                unfocusedBorderColor = BorderLight,
+                                focusedLabelColor = MetGhamrNavy,
+                                unfocusedLabelColor = TextSecondary,
+                                focusedPlaceholderColor = TextMuted,
+                                unfocusedPlaceholderColor = TextMuted,
+                                cursorColor = MetGhamrNavy
+                            ),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("suggest_edit_new_value_input")
@@ -279,6 +308,19 @@ fun SuggestEditScreen(
                             isError = reasonError != null,
                             supportingText = { if (reasonError != null) Text(reasonError!!, color = MetGhamrRed) },
                             leadingIcon = { Icon(Icons.Default.Info, contentDescription = null, tint = TextSecondary) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.Black,
+                                unfocusedTextColor = Color.Black,
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White,
+                                focusedBorderColor = MetGhamrNavy,
+                                unfocusedBorderColor = BorderLight,
+                                focusedLabelColor = MetGhamrNavy,
+                                unfocusedLabelColor = TextSecondary,
+                                focusedPlaceholderColor = TextMuted,
+                                unfocusedPlaceholderColor = TextMuted,
+                                cursorColor = MetGhamrNavy
+                            ),
                             maxLines = 3,
                             modifier = Modifier
                                 .fillMaxWidth()

@@ -218,6 +218,19 @@ fun ReportIncorrectDataScreen(
                             isError = reasonError != null,
                             supportingText = { if (reasonError != null) Text(reasonError!!, color = MetGhamrRed) },
                             leadingIcon = { Icon(Icons.Default.Feedback, contentDescription = null, tint = MetGhamrRed) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.Black,
+                                unfocusedTextColor = Color.Black,
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White,
+                                focusedBorderColor = MetGhamrNavy,
+                                unfocusedBorderColor = BorderLight,
+                                focusedLabelColor = MetGhamrNavy,
+                                unfocusedLabelColor = TextSecondary,
+                                focusedPlaceholderColor = TextMuted,
+                                unfocusedPlaceholderColor = TextMuted,
+                                cursorColor = MetGhamrNavy
+                            ),
                             maxLines = 4,
                             modifier = Modifier
                                 .fillMaxWidth()

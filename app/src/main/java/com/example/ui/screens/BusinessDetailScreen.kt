@@ -47,9 +47,11 @@ import com.example.data.model.ReviewEntity
 import com.example.ui.components.InteractiveRatingSelector
 import com.example.ui.components.ProviderBadge
 import com.example.ui.components.RatingStarsDisplay
+import com.example.ui.screens.admin.AdminEditBusinessDialog
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.DirectoryViewModel
 import com.example.ui.viewmodel.ScreenRoute
+import com.example.util.WorkingHoursUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,9 +68,12 @@ fun BusinessDetailScreen(
 
     var showReviewDialog by remember { mutableStateOf(false) }
     var showPhoneSelectionSheet by remember { mutableStateOf(false) }
+    var showAdminEditDialog by remember { mutableStateOf(false) }
     var selectedImageForFullscreen by remember { mutableStateOf<String?>(null) }
     var selectedStarRating by remember { mutableFloatStateOf(5.0f) }
     var reviewCommentText by remember { mutableStateOf("") }
+
+    val isSuperAdmin = currentUser?.isSuperAdmin == true || currentUser?.email?.trim()?.equals("m.k3shka@gmail.com", ignoreCase = true) == true
 
     if (business == null) {
         Box(
@@ -114,6 +119,20 @@ fun BusinessDetailScreen(
                     }
                 },
                 actions = {
+                    // Super Admin Direct Edit Button
+                    if (isSuperAdmin) {
+                        IconButton(
+                            onClick = { showAdminEditDialog = true },
+                            modifier = Modifier.testTag("detail_super_admin_edit_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "تعديل النشاط (Super Admin)",
+                                tint = Color(0xFFFFD700)
+                            )
+                        }
+                    }
+
                     // Share Button
                     IconButton(
                         onClick = { shareBusinessInfo(context, b) },
@@ -122,7 +141,7 @@ fun BusinessDetailScreen(
                         Icon(
                             imageVector = Icons.Outlined.Share,
                             contentDescription = "مشاركة المنشأة",
-                            tint = Color.White
+                            tint = TextPrimary
                         )
                     }
 
@@ -134,14 +153,14 @@ fun BusinessDetailScreen(
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
                             contentDescription = "المفضلة",
-                            tint = if (isFavorite) MetGhamrRed else Color.White
+                            tint = if (isFavorite) MetGhamrRed else TextPrimary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MetGhamrNavy,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = SurfaceCard,
+                    titleContentColor = TextPrimary,
+                    navigationIconContentColor = TextPrimary
                 )
             )
         }
@@ -160,6 +179,87 @@ fun BusinessDetailScreen(
                     images = galleryImages,
                     onImageClick = { url -> selectedImageForFullscreen = url }
                 )
+            }
+
+            // --- Super Admin Exclusive Management Card ---
+            if (isSuperAdmin) {
+                item {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFFD4AF37).copy(alpha = 0.2f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.AdminPanelSettings,
+                                                contentDescription = null,
+                                                tint = Color(0xFFFFD700),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Column {
+                                            Text(
+                                                text = "لوحة تحكم مدير النظام الأعلى (Super Admin) 👑",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp,
+                                                color = Color.White
+                                            )
+                                            Text(
+                                                text = "تعديل الاسم، العنوان، خريطة Google Maps، أرقام الهاتف والصور",
+                                                fontSize = 10.sp,
+                                                color = Color(0xFFFFD700)
+                                            )
+                                        }
+                                    }
+
+                                    Button(
+                                        onClick = { showAdminEditDialog = true },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37)),
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                        modifier = Modifier.testTag("super_admin_open_edit_dialog_button")
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Edit,
+                                            contentDescription = null,
+                                            tint = Color(0xFF0F172A),
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            "تعديل النشاط",
+                                            color = Color(0xFF0F172A),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // --- 2. Business Header & Identity Info ---
@@ -279,17 +379,29 @@ fun BusinessDetailScreen(
                                     )
                                 }
 
+                                val statusInfo = WorkingHoursUtils.getStatusInfo(b.workingHours)
                                 Surface(
-                                    color = if (b.isOpenNow) OpenGreen.copy(alpha = 0.12f) else ClosedRed.copy(alpha = 0.12f),
+                                    color = statusInfo.containerColor,
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
-                                    Text(
-                                        text = if (b.isOpenNow) "مفتوح الآن 🟢" else "مغلق حالياً 🔴",
-                                        color = if (b.isOpenNow) OpenGreen else ClosedRed,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .clip(CircleShape)
+                                                .background(statusInfo.dotColor)
+                                        )
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Text(
+                                            text = statusInfo.label,
+                                            color = statusInfo.contentColor,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -330,30 +442,60 @@ fun BusinessDetailScreen(
                                             dialPhoneNumber(context, b.phone)
                                         }
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MetGhamrNavy),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = SkyBlueDark,
+                                        contentColor = Color.White
+                                    ),
                                     shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                                     modifier = Modifier
                                         .weight(1f)
                                         .testTag("detail_call_button")
                                 ) {
-                                    Icon(Icons.Default.Call, contentDescription = "اتصال", modifier = Modifier.size(16.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Call,
+                                        contentDescription = "اتصال",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("اتصال", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = "اتصال",
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
                                 }
 
                                 // WhatsApp Button
                                 if (!b.whatsapp.isNullOrBlank()) {
                                     Button(
                                         onClick = { openWhatsAppChat(context, b.whatsapp!!) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF22C55E),
+                                            contentColor = Color.White
+                                        ),
                                         shape = RoundedCornerShape(12.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                                         modifier = Modifier
                                             .weight(1f)
                                             .testTag("detail_whatsapp_button")
                                     ) {
-                                        Icon(Icons.Default.Chat, contentDescription = "واتساب", modifier = Modifier.size(16.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.Chat,
+                                            contentDescription = "واتساب",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("واتساب", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            text = "واتساب",
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1
+                                        )
                                     }
                                 }
 
@@ -361,15 +503,30 @@ fun BusinessDetailScreen(
                                 if (!b.facebookUrl.isNullOrBlank()) {
                                     Button(
                                         onClick = { openFacebookPage(context, b.facebookUrl!!) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1877F2)),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF1877F2),
+                                            contentColor = Color.White
+                                        ),
                                         shape = RoundedCornerShape(12.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                                         modifier = Modifier
                                             .weight(1f)
                                             .testTag("detail_facebook_button")
                                     ) {
-                                        Icon(Icons.Default.Share, contentDescription = "فيسبوك", modifier = Modifier.size(16.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.Share,
+                                            contentDescription = "فيسبوك",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("فيسبوك", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            text = "فيسبوك",
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1
+                                        )
                                     }
                                 }
 
@@ -377,30 +534,60 @@ fun BusinessDetailScreen(
                                 if (!b.websiteUrl.isNullOrBlank()) {
                                     Button(
                                         onClick = { openWebsite(context, b.websiteUrl!!) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = MetGhamrNavy),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF0369A1),
+                                            contentColor = Color.White
+                                        ),
                                         shape = RoundedCornerShape(12.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                                         modifier = Modifier
                                             .weight(1f)
                                             .testTag("detail_website_button")
                                     ) {
-                                        Icon(Icons.Default.Language, contentDescription = "الموقع", modifier = Modifier.size(16.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.Language,
+                                            contentDescription = "الموقع",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("موقعنا", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            text = "موقعنا",
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1
+                                        )
                                     }
                                 }
 
                                 // Map Directions Button
                                 Button(
                                     onClick = { openMapDirections(context, b) },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MetGhamrTeal),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF4F46E5),
+                                        contentColor = Color.White
+                                    ),
                                     shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 10.dp),
                                     modifier = Modifier
                                         .weight(1f)
                                         .testTag("detail_map_button")
                                 ) {
-                                    Icon(Icons.Default.Map, contentDescription = "الاتجاهات", modifier = Modifier.size(16.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.NearMe,
+                                        contentDescription = "الاتجاهات",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("الاتجاهات", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = "الاتجاهات",
+                                        color = Color.White,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
                                 }
                             }
                         }
@@ -462,7 +649,35 @@ fun BusinessDetailScreen(
                                 Icon(Icons.Default.AccessTime, contentDescription = null, tint = MetGhamrGold, modifier = Modifier.size(20.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
-                                    Text("مواعيد العمل الرسمية:", fontSize = 11.sp, color = TextSecondary)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("مواعيد العمل الرسمية:", fontSize = 11.sp, color = TextSecondary)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        val statusInfo = WorkingHoursUtils.getStatusInfo(b.workingHours)
+                                        Surface(
+                                            color = statusInfo.containerColor,
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(statusInfo.dotColor)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = statusInfo.label,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = statusInfo.contentColor
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(3.dp))
                                     Text(
                                         text = b.workingHours,
                                         fontSize = 13.sp,
@@ -522,36 +737,72 @@ fun BusinessDetailScreen(
 
                             HorizontalDivider(color = BorderLight)
 
-                            // Phase 9 Suggest Edit / Report Issue CTAs
-                            Row(
+                            // Phase 9 Suggest Edit / Report Issue CTAs / Super Admin Direct Edit
+                            Column(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                TextButton(
-                                    onClick = {
-                                        viewModel.requestProtectedAction {
-                                            viewModel.navigateTo(ScreenRoute.SuggestEdit.route)
+                                if (isSuperAdmin) {
+                                    Surface(
+                                        onClick = { showAdminEditDialog = true },
+                                        color = Color(0xFF0F172A),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("super_admin_direct_edit_button")
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Edit,
+                                                contentDescription = null,
+                                                tint = Color(0xFFFFD700),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                "تعديل فوري لبيانات النشاط (Super Admin) 👑",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFFFD700)
+                                            )
                                         }
-                                    },
-                                    modifier = Modifier.testTag("suggest_edit_button")
-                                ) {
-                                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("اقتراح تعديل البيانات ✏️", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MetGhamrNavy)
+                                    }
                                 }
 
-                                TextButton(
-                                    onClick = {
-                                        viewModel.requestProtectedAction {
-                                            viewModel.navigateTo(ScreenRoute.ReportIncorrectData.route)
-                                        }
-                                    },
-                                    modifier = Modifier.testTag("report_incorrect_data_button")
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.ReportProblem, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("الإبلاغ عن خطأ ⚠️", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MetGhamrRed)
+                                    TextButton(
+                                        onClick = {
+                                            viewModel.requestProtectedAction {
+                                                viewModel.navigateTo(ScreenRoute.SuggestEdit.route)
+                                            }
+                                        },
+                                        modifier = Modifier.testTag("suggest_edit_button")
+                                    ) {
+                                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("اقتراح تعديل البيانات ✏️", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MetGhamrNavy)
+                                    }
+
+                                    TextButton(
+                                        onClick = {
+                                            viewModel.requestProtectedAction {
+                                                viewModel.navigateTo(ScreenRoute.ReportIncorrectData.route)
+                                            }
+                                        },
+                                        modifier = Modifier.testTag("report_incorrect_data_button")
+                                    ) {
+                                        Icon(Icons.Default.ReportProblem, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("الإبلاغ عن خطأ ⚠️", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MetGhamrRed)
+                                    }
                                 }
                             }
                         }
@@ -690,11 +941,11 @@ fun BusinessDetailScreen(
                                     Icon(
                                         imageVector = Icons.Default.RateReview,
                                         contentDescription = null,
-                                        tint = MetGhamrNavy,
+                                        tint = Color.White,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("أضف تقييمك", color = MetGhamrNavy, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text("أضف تقييمك", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
 
@@ -702,6 +953,93 @@ fun BusinessDetailScreen(
 
                             // Rating Breakdown Bars
                             RatingDistributionView(reviews = reviews, overallRating = b.ratingAverage)
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Quick 1-Tap Star Rating Section with Firebase Database Sync
+                            val currentUser by viewModel.currentUser.collectAsState()
+                            val myReview = reviews.find { it.userId == currentUser?.id }
+                            val currentStar = myReview?.rating ?: 0f
+
+                            Surface(
+                                color = MetGhamrGoldLight.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CloudSync,
+                                            contentDescription = null,
+                                            tint = MetGhamrNavy,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "تقييم سريع بالنجوم (تخزين فوري في Firebase ☁️):",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = MetGhamrNavy,
+                                                fontSize = 12.sp
+                                            )
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        for (star in 1..5) {
+                                            IconButton(
+                                                onClick = {
+                                                    viewModel.requestProtectedAction {
+                                                        viewModel.submitReview(star.toFloat(), myReview?.comment ?: "") { success ->
+                                                            if (success) {
+                                                                viewModel.showToast("تم حفظ تقييمك ($star نجوم) في Firebase بنجاح 🌟")
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .testTag("quick_star_rate_$star")
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (star <= currentStar) Icons.Default.Star else Icons.Default.StarBorder,
+                                                    contentDescription = "تقييم $star نجوم",
+                                                    tint = if (star <= currentStar) MetGhamrGold else Color.Gray.copy(alpha = 0.6f),
+                                                    modifier = Modifier.size(32.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    if (myReview != null) {
+                                        Text(
+                                            text = "تقييمك الحالي: ${myReview.rating.toInt()} نجوم ⭐ (محفوظ في Firebase Database)",
+                                            color = MetGhamrTeal,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "اضغط على أي نجمة لحفظ تقييمك مباشرة ومزامنته سحابياً",
+                                            color = TextSecondary,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            }
 
                             Spacer(modifier = Modifier.height(12.dp))
 
@@ -965,6 +1303,15 @@ fun BusinessDetailScreen(
                     Text("إلغاء")
                 }
             }
+        )
+    }
+
+    // --- Super Admin Edit Business Modal Dialog ---
+    if (showAdminEditDialog && isSuperAdmin) {
+        AdminEditBusinessDialog(
+            business = b,
+            viewModel = viewModel,
+            onDismiss = { showAdminEditDialog = false }
         )
     }
 }
@@ -1297,14 +1644,26 @@ private fun openWebsite(context: Context, websiteUrl: String) {
 private fun openMapDirections(context: Context, business: BusinessEntity) {
     try {
         val uri = if (business.latitude != 0.0 && business.longitude != 0.0) {
-            Uri.parse("geo:${business.latitude},${business.longitude}?q=${Uri.encode(business.name + " " + business.address)}")
+            Uri.parse("https://www.google.com/maps/search/?api=1&query=${business.latitude},${business.longitude}")
         } else {
-            Uri.parse("geo:0,0?q=${Uri.encode(business.name + " " + business.address + " ميت غمر")}")
+            Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(business.name + " " + business.address + " ميت غمر")}")
         }
-        val intent = Intent(Intent.ACTION_VIEW, uri)
-        context.startActivity(intent)
+        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+            setPackage("com.google.android.apps.maps")
+        }
+        if (intent.resolveActivity(context.packageManager) != null) {
+            context.startActivity(intent)
+        } else {
+            val webIntent = Intent(Intent.ACTION_VIEW, uri)
+            context.startActivity(webIntent)
+        }
     } catch (e: Exception) {
-        e.printStackTrace()
+        try {
+            val fallbackUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(business.name + " " + business.address + " ميت غمر")}")
+            context.startActivity(Intent(Intent.ACTION_VIEW, fallbackUri))
+        } catch (err: Exception) {
+            err.printStackTrace()
+        }
     }
 }
 

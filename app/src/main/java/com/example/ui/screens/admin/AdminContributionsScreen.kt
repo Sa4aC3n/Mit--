@@ -246,6 +246,42 @@ fun ContributionAdminCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            // ADD_BUSINESS Details Preview
+            if (contribution.type == "ADD_BUSINESS" && !contribution.payloadJson.isNullOrBlank()) {
+                val json = try { org.json.JSONObject(contribution.payloadJson) } catch (e: Exception) { null }
+                if (json != null) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            val catName = json.optString("categoryName")
+                            val spec = json.optString("specialization")
+                            val phone = json.optString("phone")
+                            val secPhone = json.optString("secondaryPhone")
+                            val whatsapp = json.optString("whatsapp")
+                            val address = json.optString("address")
+                            val city = json.optString("city")
+                            val hours = json.optString("workingHours")
+                            val maps = json.optString("googleMapsUrl")
+                            val imagesCount = json.optJSONArray("imageUrls")?.length() ?: 0
+
+                            Text("📋 تفاصيل النشاط الجديد المقدمة:", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MetGhamrNavy)
+                            if (catName.isNotBlank() || spec.isNotBlank()) {
+                                Text("📁 التصنيف والتخصص: $catName ${if (spec.isNotBlank()) "«$spec»" else ""}", fontSize = 12.sp)
+                            }
+                            if (phone.isNotBlank()) Text("📞 الهاتف: $phone ${if (secPhone.isNotBlank()) " | إضافي: $secPhone" else ""}", fontSize = 12.sp)
+                            if (whatsapp.isNotBlank()) Text("💬 واتس آب: $whatsapp", fontSize = 12.sp, color = Color(0xFF25D366), fontWeight = FontWeight.Bold)
+                            if (address.isNotBlank() || city.isNotBlank()) Text("📍 العنوان: $city - $address", fontSize = 12.sp)
+                            if (hours.isNotBlank()) Text("⏱️ المواعيد: $hours", fontSize = 12.sp)
+                            if (maps.isNotBlank()) Text("🗺️ الخريطة: $maps", fontSize = 11.sp, color = MetGhamrNavy, maxLines = 1)
+                            if (imagesCount > 0) Text("📸 عدد الصور: $imagesCount صور", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MetGhamrGoldDark)
+                        }
+                    }
+                }
+            }
+
             // DIFF VIEW FOR SUGGEST_EDIT
             if (contribution.type == "SUGGEST_EDIT" && contribution.oldValue != null && contribution.newValue != null) {
                 ContributionDiffCard(contribution = contribution)

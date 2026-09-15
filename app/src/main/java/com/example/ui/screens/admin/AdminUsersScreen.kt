@@ -87,7 +87,25 @@ fun AdminUsersScreen(viewModel: DirectoryViewModel) {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(user.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MetGhamrNavy)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(user.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MetGhamrNavy)
+                                            if (user.role == "SUPER_ADMIN" || user.email.trim().equals("m.k3shka@gmail.com", ignoreCase = true)) {
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Surface(
+                                                    color = Color(0xFF0F172A),
+                                                    shape = RoundedCornerShape(6.dp)
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Stars, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(12.dp))
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text("مدير النظام الأعلى", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                    }
+                                                }
+                                            }
+                                        }
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(user.email, fontSize = 12.sp, color = TextMuted)
                                     }
@@ -105,7 +123,7 @@ fun AdminUsersScreen(viewModel: DirectoryViewModel) {
                                     }
                                 }
 
-                                if (!user.suspensionReason.isNull_or_blank()) {
+                                if (!user.suspensionReason.isNullOrBlank()) {
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text("سبب الحظر: ${user.suspensionReason}", fontSize = 11.sp, color = Color(0xFFC62828))
                                 }
@@ -116,7 +134,22 @@ fun AdminUsersScreen(viewModel: DirectoryViewModel) {
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.End
                                 ) {
-                                    if (user.status == "ACTIVE") {
+                                    val isSuperAdminUser = user.role == "SUPER_ADMIN" || user.email.trim().equals("m.k3shka@gmail.com", ignoreCase = true)
+                                    if (isSuperAdminUser) {
+                                        Surface(
+                                            color = Color(0xFF0F172A).copy(alpha = 0.08f),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                            ) {
+                                                Icon(Icons.Default.Shield, contentDescription = null, tint = MetGhamrNavy, modifier = Modifier.size(14.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("حساب محمي بصلاحيات المالك الأعلى", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MetGhamrNavy)
+                                            }
+                                        }
+                                    } else if (user.status == "ACTIVE") {
                                         OutlinedButton(
                                             onClick = {
                                                 showSuspendDialog = user

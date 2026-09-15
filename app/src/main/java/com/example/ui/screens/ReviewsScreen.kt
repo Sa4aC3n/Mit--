@@ -119,7 +119,7 @@ fun ReviewsScreen(
                     }
                 },
                 containerColor = MetGhamrGold,
-                contentColor = MetGhamrNavy,
+                contentColor = Color.White,
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.testTag("fab_write_review")
             ) {

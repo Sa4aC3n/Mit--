@@ -14,22 +14,35 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.metghamrdirectory.app"
+    applicationId = "com.dalil.mit3mr.app"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = 9
+    versionName = "9.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      val customKeystore = System.getenv("KEYSTORE_PATH")?.let { file(it) }
+      val uploadKeystore = file("${rootDir}/my-upload-key.jks")
+      val debugKeystore = file("${rootDir}/debug.keystore")
+      val targetKeystore = when {
+        customKeystore != null && customKeystore.exists() -> customKeystore
+        uploadKeystore.exists() -> uploadKeystore
+        else -> debugKeystore
+      }
+      storeFile = targetKeystore
+      if (targetKeystore == debugKeystore) {
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      } else {
+        storePassword = System.getenv("STORE_PASSWORD") ?: "android"
+        keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
+        keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+      }
     }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")
@@ -59,7 +72,7 @@ android {
   testOptions { unitTests { isIncludeAndroidResources = true } }
   dependenciesInfo {
     includeInApk = false
-    includeInBundle = true
+    includeInBundle = false
   }
 }
 
@@ -78,7 +91,7 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 dependencies {
   implementation(platform(libs.firebase.bom))
   implementation("com.google.firebase:firebase-auth")
-  implementation("com.google.firebase:firebase-analytics")
+  // implementation("com.google.firebase:firebase-analytics")
   implementation("com.google.firebase:firebase-database")
   implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
   implementation("androidx.credentials:credentials:1.3.0")
@@ -109,8 +122,8 @@ dependencies {
   implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
-  // Uncomment to use Firestore:
-  // implementation(libs.firebase.firestore)
+  implementation(libs.firebase.firestore)
+  implementation("com.google.firebase:firebase-storage")
 
   // Uncomment ALL FOUR of the following dependencies together to use Firebase Auth and Google
   // Sign-In via Credential Manager:
@@ -145,3 +158,5 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }
+
+

@@ -47,7 +47,7 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
             // Welcome Header Card
             item {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = MetGhamrNavy),
+                    colors = CardDefaults.cardColors(containerColor = SkyBluePrimary),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -67,14 +67,14 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     "مراجعة واعتَماد بيانات دليل ميت غمر لحظة بلحظة",
-                                    color = MetGhamrGold,
+                                    color = Color.White.copy(alpha = 0.9f),
                                     fontSize = 12.sp
                                 )
                             }
                             Icon(
                                 Icons.Default.Verified,
                                 contentDescription = null,
-                                tint = MetGhamrGold,
+                                tint = Color.White,
                                 modifier = Modifier.size(32.dp)
                             )
                         }
@@ -88,7 +88,7 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
                     "مؤشرات الأداء الحقيقية (Real KPIs):",
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
-                    color = MetGhamrNavy
+                    color = TextPrimary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -100,7 +100,7 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
                         value = "${kpis.activeBusinesses}",
                         subtitle = "إجمالي ${kpis.totalBusinesses}",
                         icon = Icons.Default.Storefront,
-                        accentColor = Color(0xFF2E7D32),
+                        accentColor = LettuceGreen,
                         modifier = Modifier.weight(1f),
                         onClick = { viewModel.navigateTo(ScreenRoute.AdminBusinesses.route) }
                     )
@@ -109,7 +109,7 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
                         value = "${kpis.pendingContributions}",
                         subtitle = "طلب فحص",
                         icon = Icons.Default.RateReview,
-                        accentColor = Color(0xFFFFA000),
+                        accentColor = Color(0xFFF59E0B),
                         modifier = Modifier.weight(1f),
                         onClick = { viewModel.navigateTo(ScreenRoute.AdminContributions.route) }
                     )
@@ -124,7 +124,7 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
                         value = "${kpis.openReports}",
                         subtitle = "مفتوحة",
                         icon = Icons.Default.ReportProblem,
-                        accentColor = Color(0xFFD32F2F),
+                        accentColor = WatermelonRed,
                         modifier = Modifier.weight(1f),
                         onClick = { viewModel.navigateTo(ScreenRoute.AdminReports.route) }
                     )
@@ -133,7 +133,7 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
                         value = "${kpis.totalUsers}",
                         subtitle = "حسابات مسجلة",
                         icon = Icons.Default.People,
-                        accentColor = MetGhamrNavy,
+                        accentColor = SkyBlueDark,
                         modifier = Modifier.weight(1f),
                         onClick = { viewModel.navigateTo(ScreenRoute.AdminUsers.route) }
                     )
@@ -146,7 +146,7 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
                     "الوصول السريع للمهام:",
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
-                    color = MetGhamrNavy
+                    color = TextPrimary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -156,7 +156,7 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
                     QuickActionButton(
                         title = "المساهمات (${kpis.pendingContributions})",
                         icon = Icons.Default.AssignmentTurnedIn,
-                        color = MetGhamrGoldDark,
+                        color = Color(0xFFF59E0B),
                         modifier = Modifier.weight(1f)
                     ) {
                         viewModel.navigateTo(ScreenRoute.AdminContributions.route)
@@ -164,7 +164,7 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
                     QuickActionButton(
                         title = "إرسال إشعار",
                         icon = Icons.Default.NotificationsActive,
-                        color = MetGhamrNavy,
+                        color = SkyBluePrimary,
                         modifier = Modifier.weight(1f)
                     ) {
                         viewModel.navigateTo(ScreenRoute.AdminNotifications.route)
@@ -172,7 +172,7 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
                     QuickActionButton(
                         title = "جودة البيانات",
                         icon = Icons.Default.HealthAndSafety,
-                        color = Color(0xFF00897B),
+                        color = LettuceGreen,
                         modifier = Modifier.weight(1f)
                     ) {
                         viewModel.navigateTo(ScreenRoute.AdminAnalytics.route)
@@ -183,20 +183,20 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
             // Data Quality Alert Card
             item {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Analytics, contentDescription = null, tint = MetGhamrNavy)
+                            Icon(Icons.Default.Analytics, contentDescription = null, tint = SkyBluePrimary)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 "ملخص جودة وتحسين بيانات الدليل:",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
-                                color = MetGhamrNavy
+                                color = TextPrimary
                             )
                         }
                         Spacer(modifier = Modifier.height(12.dp))
@@ -204,9 +204,9 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            DataMetricPill("بدون هاتف", "${dataQuality.missingPhoneCount}", Color(0xFFD32F2F))
-                            DataMetricPill("بدون مواعيد", "${dataQuality.missingHoursCount}", Color(0xFFFFA000))
-                            DataMetricPill("بدون عنوان", "${dataQuality.missingAddressCount}", Color(0xFF1976D2))
+                            DataMetricPill("بدون هاتف", "${dataQuality.missingPhoneCount}", WatermelonRed)
+                            DataMetricPill("بدون مواعيد", "${dataQuality.missingHoursCount}", Color(0xFFF59E0B))
+                            DataMetricPill("بدون عنوان", "${dataQuality.missingAddressCount}", SkyBluePrimary)
                         }
                     }
                 }
@@ -223,10 +223,10 @@ fun AdminDashboardScreen(viewModel: DirectoryViewModel) {
                         "آخر طلبات المساهمة المعلقة:",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = MetGhamrNavy
+                        color = TextPrimary
                     )
                     TextButton(onClick = { viewModel.navigateTo(ScreenRoute.AdminContributions.route) }) {
-                        Text("عرض الكل", color = MetGhamrGoldDark, fontWeight = FontWeight.Bold)
+                        Text("عرض الكل", color = SkyBluePrimary, fontWeight = FontWeight.Bold)
                     }
                 }
             }

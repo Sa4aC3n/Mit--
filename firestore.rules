@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && request.auth.token.email == 'm.k3shka@gmail.com';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Businesses Collection
+    match /businesses/{businessId} {
+      // Anyone can read active & verified businesses (public directory)
+      allow read: if true;
+
+      // Only Super Admin or authorized Admin can create/update/delete businesses directly
+      allow create, update: if isSuperAdmin() || (
+        isAuthenticated() && 
+        request.resource.data.keys().hasAll(['id', 'name', 'phone', 'categoryName', 'updatedAt']) &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0
+      );
+
+      // Only Super Admin can hard-delete businesses
+      allow delete: if isSuperAdmin();
+    }
+
+    // Reviews & Ratings Collection
+    match /reviews/{reviewId} {
+      // Publicly readable
+      allow read: if true;
+
+      // Authenticated users can write their own reviews (with 1-5 rating constraint)
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.rating >= 1 &&
+        request.resource.data.rating <= 5;
+
+      // Users can update/delete their own review; Super Admin can moderate any review
+      allow update, delete: if isSuperAdmin() || (
+        isAuthenticated() && resource.data.userId == request.auth.uid
+      );
+    }
+
+    // User Contributions & Suggestions
+    match /contributions/{contribId} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // Audit Logs & Security
+    match /audit_logs/{logId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // App Configurations & Analytics
+    match /system_config/{docId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+  }
+}

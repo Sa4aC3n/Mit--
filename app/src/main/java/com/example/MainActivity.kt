@@ -1,5 +1,7 @@
 package com.example
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -17,6 +19,9 @@ import com.example.ui.components.MetGhamrBottomNavBar
 import com.example.ui.components.MetGhamrTopAppBar
 import com.example.ui.screens.*
 import com.example.ui.screens.admin.*
+import com.example.ui.screens.intro.LampIntroScreen
+import com.example.ui.screens.map.InteractiveMapScreen
+import com.example.ui.screens.security.OwnerSecurityGateScreen
 import com.example.ui.theme.MetGhamrDirectoryTheme
 import com.example.ui.viewmodel.DirectoryViewModel
 import com.example.ui.viewmodel.ScreenRoute
@@ -26,6 +31,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        com.example.util.NotificationHelper.createNotificationChannels(this)
 
         try {
             val database = FirebaseDatabase.getInstance()
@@ -40,6 +46,11 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
 }
 
 @Composable
@@ -47,13 +58,53 @@ fun MetGhamrMainApp(
     viewModel: DirectoryViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val activity = context as? MainActivity
+
+    // Deep-link intent navigation from push notifications
+    LaunchedEffect(activity?.intent) {
+        val incomingIntent = activity?.intent
+        val bizId = incomingIntent?.getStringExtra("businessId")
+        val route = incomingIntent?.getStringExtra("route")
+
+        if (!bizId.isNullOrBlank()) {
+            viewModel.selectBusiness(bizId)
+            incomingIntent.removeExtra("businessId")
+        } else if (!route.isNullOrBlank()) {
+            if (route == "notifications") {
+                viewModel.navigateTo(ScreenRoute.Notifications.route)
+            } else if (route == "home") {
+                viewModel.navigateTo(ScreenRoute.Home.route)
+            }
+            incomingIntent.removeExtra("route")
+        }
+    }
+
+    val isAppUnlocked by viewModel.isAppUnlocked.collectAsState()
+    val isOwnerVerified by viewModel.isOwnerVerified.collectAsState()
     val currentRoute by viewModel.currentRoute.collectAsState()
     val unreadNotifCount by viewModel.unreadNotificationsCount.collectAsState()
     val toastMessage by viewModel.toastMessage.collectAsState()
     val showLoginPrompt by viewModel.showLoginPrompt.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val firestoreSyncStatus by viewModel.firestoreSyncStatus.collectAsState()
+    val allActiveBusinesses by viewModel.allActiveBusinesses.collectAsState()
+
+    val isSyncingNow = isRefreshing || firestoreSyncStatus.isSyncing
+    val syncBadgeText = when {
+        isSyncingNow -> "مزامنة..."
+        firestoreSyncStatus.syncedBusinessesCount > 0 -> "${firestoreSyncStatus.syncedBusinessesCount} نشاط"
+        allActiveBusinesses.isNotEmpty() -> "${allActiveBusinesses.size} نشاط"
+        else -> "متصل"
+    }
+
+    // Security Gate Interceptor: Only if explicitly locked by the verified owner
+    if (!isAppUnlocked && isOwnerVerified) {
+        OwnerSecurityGateScreen(viewModel = viewModel)
+        return
+    }
 
     // BackHandler to handle system back navigation
-    BackHandler(enabled = currentRoute != ScreenRoute.Home.route) {
+    BackHandler(enabled = currentRoute != ScreenRoute.Home.route && currentRoute != ScreenRoute.LampIntro.route && currentRoute != ScreenRoute.Login.route) {
         viewModel.popBackStack()
     }
 
@@ -68,6 +119,7 @@ fun MetGhamrMainApp(
     val mainTabs = listOf(
         ScreenRoute.Home.route,
         ScreenRoute.Categories.route,
+        ScreenRoute.Emergency.route,
         ScreenRoute.Search.route,
         ScreenRoute.Favorites.route,
         ScreenRoute.UserProfile.route
@@ -86,6 +138,7 @@ fun MetGhamrMainApp(
         ScreenRoute.AboutApp.route -> "عن تطبيق دليل ميت غمر"
         ScreenRoute.UserProfile.route -> "الملف الشخصي والتوثيق"
         ScreenRoute.Categories.route -> "تصنيفات دليل ميت غمر"
+        ScreenRoute.Emergency.route -> "أرقام الطوارئ والنجدة"
         ScreenRoute.Search.route -> "البحث الشامل في ميت غمر"
         ScreenRoute.Favorites.route -> "الأنشطة المفضلة"
         else -> "دليل ميت غمر"
@@ -108,7 +161,9 @@ fun MetGhamrMainApp(
     Scaffold(
         topBar = {
             val selfTopBarRoutes = listOf(
+                ScreenRoute.LampIntro.route,
                 ScreenRoute.Login.route,
+                ScreenRoute.EmailVerification.route,
                 ScreenRoute.BusinessDetail.route,
                 ScreenRoute.Reviews.route,
                 ScreenRoute.WriteReview.route,
@@ -125,7 +180,15 @@ fun MetGhamrMainApp(
                 ScreenRoute.AdminAuditLogs.route,
                 ScreenRoute.AdminSettings.route,
                 ScreenRoute.AdminDataManagement.route,
-                ScreenRoute.AiAssistant.route
+                ScreenRoute.AdminDataCollector.route,
+                ScreenRoute.AiAssistant.route,
+                ScreenRoute.AddBusiness.route,
+                ScreenRoute.InteractiveMap.route,
+                ScreenRoute.Notifications.route,
+                ScreenRoute.SuggestEdit.route,
+                ScreenRoute.ReportIncorrectData.route,
+                ScreenRoute.MyContributions.route,
+                ScreenRoute.ContributionDetail.route
             )
             if (currentRoute in selfTopBarRoutes) {
                 // These screens render their own TopAppBar internally
@@ -134,18 +197,32 @@ fun MetGhamrMainApp(
                     title = "دليل ميت غمر",
                     isSecondaryScreen = false,
                     unreadNotifCount = unreadNotifCount,
+                    showAdminControls = isOwnerVerified,
+                    syncBadgeText = syncBadgeText,
+                    isSyncing = isSyncingNow,
+                    onSyncClick = { viewModel.refreshData() },
                     onNotifClick = { viewModel.navigateTo(ScreenRoute.Notifications.route) },
-                    onAdminClick = { viewModel.navigateTo(ScreenRoute.AdminDashboard.route) },
+                    onAdminClick = {
+                        if (isOwnerVerified) {
+                            viewModel.navigateTo(ScreenRoute.AdminDashboard.route)
+                        }
+                    },
                     onAboutClick = { viewModel.navigateTo(ScreenRoute.AboutApp.route) },
-                    onProfileClick = { viewModel.navigateTo(ScreenRoute.UserProfile.route) }
+                    onProfileClick = { viewModel.navigateTo(ScreenRoute.UserProfile.route) },
+                    onLockClick = if (isOwnerVerified) { { viewModel.lockApp() } } else null
                 )
             } else {
                 MetGhamrTopAppBar(
                     title = screenTitle,
                     isSecondaryScreen = true,
                     unreadNotifCount = unreadNotifCount,
+                    showAdminControls = isOwnerVerified,
+                    syncBadgeText = syncBadgeText,
+                    isSyncing = isSyncingNow,
+                    onSyncClick = { viewModel.refreshData() },
                     onBackClick = { viewModel.popBackStack() },
-                    onAboutClick = { viewModel.navigateTo(ScreenRoute.AboutApp.route) }
+                    onAboutClick = { viewModel.navigateTo(ScreenRoute.AboutApp.route) },
+                    onLockClick = if (isOwnerVerified) { { viewModel.lockApp() } } else null
                 )
             }
         },
@@ -164,11 +241,35 @@ fun MetGhamrMainApp(
                 .padding(innerPadding)
         ) {
             when (currentRoute) {
+                ScreenRoute.LampIntro.route -> {
+                    LampIntroScreen(
+                        onIntroComplete = {
+                            viewModel.navigateTo(ScreenRoute.Home.route, clearBackStack = true)
+                        }
+                    )
+                }
+
                 ScreenRoute.Login.route -> {
                     LoginScreen(
                         viewModel = viewModel,
-                        onBackClick = { viewModel.popBackStack() },
+                        onBackClick = {
+                            if (!viewModel.popBackStack()) {
+                                viewModel.navigateTo(ScreenRoute.Home.route)
+                            }
+                        },
                         onContinueAsGuest = {
+                            viewModel.navigateTo(ScreenRoute.Home.route, clearBackStack = true)
+                        }
+                    )
+                }
+
+                ScreenRoute.EmailVerification.route -> {
+                    EmailVerificationScreen(
+                        viewModel = viewModel,
+                        onLoginClick = {
+                            viewModel.navigateTo(ScreenRoute.Login.route)
+                        },
+                        onBackClick = {
                             viewModel.popBackStack()
                         }
                     )
@@ -178,7 +279,9 @@ fun MetGhamrMainApp(
                     HomeScreen(
                         viewModel = viewModel,
                         onNavigateToSearch = { viewModel.navigateTo(ScreenRoute.Search.route) },
-                        onNavigateToCategories = { viewModel.navigateTo(ScreenRoute.Categories.route) }
+                        onNavigateToCategories = { viewModel.navigateTo(ScreenRoute.Categories.route) },
+                        onNavigateToAiAssistant = { viewModel.navigateTo(ScreenRoute.AiAssistant.route) },
+                        onNavigateToMap = { viewModel.navigateTo(ScreenRoute.InteractiveMap.route) }
                     )
                 }
 
@@ -187,6 +290,15 @@ fun MetGhamrMainApp(
                         viewModel = viewModel,
                         onCategorySelected = {
                             viewModel.navigateTo(ScreenRoute.Home.route)
+                        }
+                    )
+                }
+
+                ScreenRoute.Emergency.route -> {
+                    EmergencyScreen(
+                        onCallClick = { phone ->
+                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
+                            context.startActivity(intent)
                         }
                     )
                 }
@@ -278,54 +390,75 @@ fun MetGhamrMainApp(
                 }
 
                 ScreenRoute.AdminDashboard.route -> {
-                    AdminDashboardScreen(viewModel = viewModel)
+                    if (isOwnerVerified) {
+                        AdminDashboardScreen(viewModel = viewModel)
+                    } else {
+                        HomeScreen(
+                            viewModel = viewModel,
+                            onNavigateToSearch = { viewModel.navigateTo(ScreenRoute.Search.route) },
+                            onNavigateToCategories = { viewModel.navigateTo(ScreenRoute.Categories.route) },
+                            onNavigateToAiAssistant = { viewModel.navigateTo(ScreenRoute.AiAssistant.route) },
+                            onNavigateToMap = { viewModel.navigateTo(ScreenRoute.InteractiveMap.route) }
+                        )
+                    }
                 }
 
                 ScreenRoute.AdminBusinesses.route -> {
-                    AdminBusinessesScreen(viewModel = viewModel)
+                    if (isOwnerVerified) AdminBusinessesScreen(viewModel = viewModel)
                 }
 
                 ScreenRoute.AdminCategories.route -> {
-                    AdminCategoriesScreen(viewModel = viewModel)
+                    if (isOwnerVerified) AdminCategoriesScreen(viewModel = viewModel)
                 }
 
                 ScreenRoute.AdminUsers.route -> {
-                    AdminUsersScreen(viewModel = viewModel)
+                    if (isOwnerVerified) AdminUsersScreen(viewModel = viewModel)
                 }
 
                 ScreenRoute.AdminReviews.route -> {
-                    AdminReviewsScreen(viewModel = viewModel)
+                    if (isOwnerVerified) AdminReviewsScreen(viewModel = viewModel)
                 }
 
                 ScreenRoute.AdminContributions.route -> {
-                    AdminContributionsScreen(viewModel = viewModel)
+                    if (isOwnerVerified) AdminContributionsScreen(viewModel = viewModel)
                 }
 
                 ScreenRoute.AdminReports.route -> {
-                    AdminReportsScreen(viewModel = viewModel)
+                    if (isOwnerVerified) AdminReportsScreen(viewModel = viewModel)
                 }
 
                 ScreenRoute.AdminNotifications.route -> {
-                    AdminNotificationsScreen(viewModel = viewModel)
+                    if (isOwnerVerified) AdminNotificationsScreen(viewModel = viewModel)
                 }
 
                 ScreenRoute.AdminAnalytics.route -> {
-                    AdminAnalyticsScreen(viewModel = viewModel)
+                    if (isOwnerVerified) AdminAnalyticsScreen(viewModel = viewModel)
                 }
 
                 ScreenRoute.AdminAuditLogs.route -> {
-                    AdminAuditLogsScreen(viewModel = viewModel)
+                    if (isOwnerVerified) AdminAuditLogsScreen(viewModel = viewModel)
                 }
 
                 ScreenRoute.AdminSettings.route -> {
-                    AdminSettingsScreen(viewModel = viewModel)
+                    if (isOwnerVerified) AdminSettingsScreen(viewModel = viewModel)
                 }
 
                 ScreenRoute.AdminDataManagement.route -> {
-                    AdminDataManagementScreen(
-                        viewModel = viewModel,
-                        onBackClick = { viewModel.popBackStack() }
-                    )
+                    if (isOwnerVerified) {
+                        AdminDataManagementScreen(
+                            viewModel = viewModel,
+                            onBackClick = { viewModel.popBackStack() }
+                        )
+                    }
+                }
+
+                ScreenRoute.AdminDataCollector.route -> {
+                    if (isOwnerVerified) {
+                        AdminDataCollectorScreen(
+                            viewModel = viewModel,
+                            onBackClick = { viewModel.popBackStack() }
+                        )
+                    }
                 }
 
                 ScreenRoute.AiAssistant.route -> {
@@ -333,6 +466,13 @@ fun MetGhamrMainApp(
                         viewModel = viewModel,
                         onBackClick = { viewModel.popBackStack() },
                         onNavigateToDetail = { id -> viewModel.selectBusiness(id) }
+                    )
+                }
+
+                ScreenRoute.InteractiveMap.route -> {
+                    InteractiveMapScreen(
+                        viewModel = viewModel,
+                        onBackClick = { viewModel.popBackStack() }
                     )
                 }
 
@@ -356,7 +496,8 @@ fun MetGhamrMainApp(
                         viewModel = viewModel,
                         onNavigateToSearch = { viewModel.navigateTo(ScreenRoute.Search.route) },
                         onNavigateToCategories = { viewModel.navigateTo(ScreenRoute.Categories.route) },
-                        onNavigateToAiAssistant = { viewModel.navigateTo(ScreenRoute.AiAssistant.route) }
+                        onNavigateToAiAssistant = { viewModel.navigateTo(ScreenRoute.AiAssistant.route) },
+                        onNavigateToMap = { viewModel.navigateTo(ScreenRoute.InteractiveMap.route) }
                     )
                 }
             }

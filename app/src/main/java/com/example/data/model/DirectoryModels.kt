@@ -29,6 +29,16 @@ data class BusinessEntity(
     val ratingCount: Int = 0,
     val viewCount: Int = 0,
     val imageUrl: String? = null,
+    // --- Data Quality, Multi-Source & Provenance ---
+    val verificationStatus: String = if (isVerified) "VERIFIED" else "UNVERIFIED",
+    val dataQualityScore: Int = 85,
+    val phoneSource: String? = null,
+    val websiteSource: String? = null,
+    val facebookSource: String? = null,
+    val addressSource: String? = null,
+    val workingHoursSource: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val lastVerifiedAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
 
@@ -138,6 +148,7 @@ data class CategoryItem(
 )
 
 enum class AuthProvider(val displayName: String, val brandColor: Long) {
+    EMAIL("البريد الإلكتروني", 0xFF0284C7),
     GOOGLE("Google", 0xFF4285F4),
     FACEBOOK("Facebook", 0xFF1877F2),
     MICROSOFT("Microsoft", 0xFF00A4EF)
@@ -152,6 +163,12 @@ enum class AuthState {
     ERROR
 }
 
+sealed class EmailAuthResult {
+    data class Success(val user: UserAccount) : EmailAuthResult()
+    data class VerificationRequired(val email: String, val message: String? = null) : EmailAuthResult()
+    data class Error(val message: String) : EmailAuthResult()
+}
+
 data class UserAccount(
     val id: String,
     val providerId: String = "",
@@ -162,11 +179,15 @@ data class UserAccount(
     val lastName: String = "",
     val photoUrl: String? = null,
     val phone: String? = null,
+    val role: String = if (email.trim().equals("m.k3shka@gmail.com", ignoreCase = true)) "SUPER_ADMIN" else "USER",
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val lastLoginAt: Long = System.currentTimeMillis(),
     val isActive: Boolean = true
 ) {
+    val isSuperAdmin: Boolean
+        get() = role.uppercase() == "SUPER_ADMIN" || email.trim().equals("m.k3shka@gmail.com", ignoreCase = true)
+
     // Backward compatibility helper properties
     val name: String get() = displayName
     val avatarUrl: String get() = photoUrl ?: ""
@@ -244,16 +265,23 @@ data class AddBusinessPayload(
     val name: String,
     val categoryId: String,
     val categoryName: String,
+    val subcategoryId: String = "",
     val specialization: String = "",
     val phone: String,
     val secondaryPhone: String = "",
+    val whatsapp: String = "",
     val city: String = "مدينة ميت غمر",
     val address: String,
     val district: String = "",
     val workingHours: String = "",
+    val workingDays: String = "",
+    val morningShift: String = "",
+    val eveningShift: String = "",
+    val isTwoShifts: Boolean = false,
     val description: String = "",
     val facebookUrl: String = "",
     val websiteUrl: String = "",
+    val googleMapsUrl: String = "",
     val lat: Double? = null,
     val lng: Double? = null,
     val imageUrls: List<String> = emptyList(),

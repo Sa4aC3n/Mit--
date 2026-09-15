@@ -17,8 +17,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.BusinessCard
+import com.example.ui.components.EmptyStateView
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.DirectoryViewModel
+import com.example.ui.viewmodel.ScreenRoute
 
 @Composable
 fun FavoritesScreen(
@@ -36,44 +38,57 @@ fun FavoritesScreen(
             .background(SurfaceLight)
             .padding(16.dp)
     ) {
-        Text(
-            text = "قائمة المفضلة ❤️",
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                fontSize = 20.sp
-            )
-        )
-        Text(
-            text = "الأنشطة والعيادات والمحلات المحفوظة للوصول السريع",
-            style = MaterialTheme.typography.bodySmall.copy(
-                color = TextSecondary,
-                fontSize = 12.sp
-            ),
-            modifier = Modifier.padding(top = 2.dp, bottom = 16.dp)
-        )
-
-        if (favBusinesses.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.FavoriteBorder,
-                        contentDescription = null,
-                        tint = TextSecondary,
-                        modifier = Modifier.size(56.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "قائمة المفضلة ❤️",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                        fontSize = 20.sp
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "لم تقم بإضافة أي عنصر للمفضلة بعد.",
+                )
+                Text(
+                    text = "الأنشطة والعيادات والمحلات المحفوظة للوصول السريع",
+                    style = MaterialTheme.typography.bodySmall.copy(
                         color = TextSecondary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
+                        fontSize = 12.sp
+                    ),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+
+            if (favBusinesses.isNotEmpty()) {
+                Surface(
+                    color = SkyBlueContainer,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "${favBusinesses.size} نشاط",
+                        color = SkyBlueDark,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (favBusinesses.isEmpty()) {
+            EmptyStateView(
+                icon = Icons.Default.FavoriteBorder,
+                title = "قائمة المفضلة فارغة",
+                description = "يمكنك حفظ أنشطتك المفضلة في ميت غمر للوصول إليها بسرعة في أي وقت ودون الحاجة لإعادة البحث.",
+                actionButtonText = "استكشف الأنشطة الآن",
+                onActionClick = { viewModel.navigateTo(ScreenRoute.Home.route) },
+                modifier = Modifier.fillMaxSize()
+            )
         } else {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),

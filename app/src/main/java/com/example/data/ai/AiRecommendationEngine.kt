@@ -100,14 +100,7 @@ object AiRecommendationEngine {
      * Determines whether a business is currently open based on working hours string & current time
      */
     fun isBusinessOpenNow(workingHours: String, now: Calendar = Calendar.getInstance()): Boolean {
-        val trimmed = workingHours.trim().lowercase(Locale.ROOT)
-        if (trimmed.contains("24") || trimmed.contains("طوال اليوم") || trimmed.contains("دائماً") || trimmed.contains("مفتوح دائماً")) {
-            return true
-        }
-
-        val currentHour = now.get(Calendar.HOUR_OF_DAY)
-        // Basic heuristic checking for standard business operating windows
-        return currentHour in 9..23
+        return com.example.util.WorkingHoursUtils.isBusinessOpenNow(workingHours, now)
     }
 
     /**

@@ -6,7 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
 import com.example.data.model.*
 import com.example.data.model.seed.InitialDataSeed
+import com.example.data.firebase.CloudSyncStatus
 import com.example.data.repository.DirectoryRepository
+import com.example.data.security.PinVerifyResult
+import com.example.data.security.SecurityAuditEntry
 import com.example.util.ArabicNormalizer
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -24,10 +27,13 @@ sealed class ScreenRoute(
     val title: String,
     val isBottomTab: Boolean = false
 ) {
+    data object LampIntro : ScreenRoute("lamp_intro", "بداية التطبيق")
     data object Splash : ScreenRoute("splash", "ترحيب")
     data object Login : ScreenRoute("login", "تسجيل الدخول")
+    data object EmailVerification : ScreenRoute("email_verification", "تأكيد البريد الإلكتروني")
     data object Home : ScreenRoute("home", "الرئيسية", isBottomTab = true)
     data object Categories : ScreenRoute("categories", "التصنيفات", isBottomTab = true)
+    data object Emergency : ScreenRoute("emergency", "الطوارئ", isBottomTab = true)
     data object Search : ScreenRoute("search", "البحث", isBottomTab = true)
     data object Favorites : ScreenRoute("favorites", "المفضلة", isBottomTab = true)
     data object UserProfile : ScreenRoute("profile", "حسابي", isBottomTab = true)
@@ -54,7 +60,9 @@ sealed class ScreenRoute(
     data object AdminAuditLogs : ScreenRoute("admin_audit_logs", "سجل النشاط الإداري")
     data object AdminSettings : ScreenRoute("admin_settings", "إعدادات المشرفين والأدوار")
     data object AdminDataManagement : ScreenRoute("admin_data_management", "إدارة البيانات والنسخ الاحتياطي")
+    data object AdminDataCollector : ScreenRoute("admin_data_collector", "محرك جمع وإثراء البيانات")
     data object AiAssistant : ScreenRoute("ai_assistant", "مساعد ميت غمر الذكي")
+    data object InteractiveMap : ScreenRoute("interactive_map", "خريطة الخدمات والمستشفيات")
     data object AboutApp : ScreenRoute("about", "عن التطبيق")
     data object Settings : ScreenRoute("settings", "الإعدادات")
 }
@@ -67,18 +75,61 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
         application
     )
 
-    val categories: List<CategoryItem> = InitialDataSeed.categories
+    val categories: StateFlow<List<CategoryItem>> = repository.categories
+    val categoriesList: List<CategoryItem> get() = repository.categories.value
 
     // --- State Holders ---
     val authState: StateFlow<AuthState> = repository.authState
     val currentUser: StateFlow<UserAccount?> = repository.currentUser
+
+    // Security & Owner Protection Gate
+    val isAppUnlocked: StateFlow<Boolean> = repository.isAppUnlocked
+    val failedPinAttempts: StateFlow<Int> = repository.failedPinAttempts
+    val lockoutRemainingSeconds: StateFlow<Int> = repository.lockoutRemainingSeconds
+    val securityLogs: StateFlow<List<SecurityAuditEntry>> = repository.securityLogs
+
+    // Cloud Synchronization State (Firestore Source of Truth & Realtime)
+    val cloudSyncStatus: StateFlow<CloudSyncStatus> = repository.cloudSyncStatus
+    val firestoreSyncStatus: StateFlow<com.example.data.firebase.FirestoreSyncStatus> = repository.firestoreSyncStatus
+
+    fun triggerIncrementalFirestoreSync(forceFull: Boolean = false, onComplete: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val res = repository.triggerIncrementalFirestoreSync(forceFull)
+            res.onSuccess { count ->
+                val msg = if (count > 0) "تمت مزامنة $count سجل سحابي بنجاح ☁️⚡" else "البيانات السحابية متطابقة ومحدثة بالكامل ✅"
+                showToast(msg)
+                onComplete(true, msg)
+            }.onFailure { err ->
+                val msg = "تعذر إتمام المزامنة السحابية: ${err.localizedMessage}"
+                showToast(msg)
+                onComplete(false, msg)
+            }
+        }
+    }
+
+    val isOwnerVerified: StateFlow<Boolean> = repository.currentUser
+        .map { repository.isOwnerAccount(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), repository.isOwnerAccount(repository.currentUser.value))
+
+    fun verifyPin(enteredPin: String): PinVerifyResult {
+        val result = repository.verifyMasterPin(enteredPin)
+        if (result is PinVerifyResult.Success) {
+            showToast("تم التحقق بنجاح من هوية المالك ورمز PIN 🔐✨")
+        }
+        return result
+    }
+
+    fun lockApp() {
+        repository.lockApp()
+        showToast("تم قفل التطبيق برمز PIN بنجاح 🔒")
+    }
 
     private val _showLoginPrompt = MutableStateFlow(false)
     val showLoginPrompt: StateFlow<Boolean> = _showLoginPrompt.asStateFlow()
 
     private var pendingAction: (() -> Unit)? = null
 
-    private val _currentRoute = MutableStateFlow<String>(ScreenRoute.Home.route)
+    private val _currentRoute = MutableStateFlow<String>(ScreenRoute.LampIntro.route)
     val currentRoute: StateFlow<String> = _currentRoute.asStateFlow()
 
     private val _selectedBusinessId = MutableStateFlow<String?>(null)
@@ -154,9 +205,12 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
     val allActiveBusinesses: StateFlow<List<BusinessEntity>> = repository.allActiveBusinesses
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val categoriesWithCounts: StateFlow<List<CategoryItem>> = allActiveBusinesses.map { activeList ->
+    val categoriesWithCounts: StateFlow<List<CategoryItem>> = combine(
+        repository.categories,
+        allActiveBusinesses
+    ) { catList, activeList ->
         val countsMap = activeList.groupingBy { it.categoryId }.eachCount()
-        InitialDataSeed.categories.map { cat ->
+        catList.map { cat ->
             val realCount = countsMap[cat.id] ?: 0
             val subcatsWithCounts = cat.subcategories.map { sub ->
                 val subCount = activeList.count { b ->
@@ -174,6 +228,33 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), InitialDataSeed.categories)
 
+    fun saveCategory(category: CategoryItem, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.saveCategory(category)
+            showToast("تم حفظ وتحديث تصنيف «${category.nameAr}» بنجاح ✅✨")
+            onSuccess()
+        }
+    }
+
+    fun deleteCategory(categoryId: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            val success = repository.deleteCategory(categoryId)
+            if (success) {
+                showToast("تم حذف التصنيف بنجاح 🗑️")
+                onSuccess()
+            } else {
+                showToast("تعذر العثور على التصنيف المطلوب")
+            }
+        }
+    }
+
+    fun resetCategoriesToDefault() {
+        viewModelScope.launch {
+            repository.resetCategoriesToDefault()
+            showToast("تمت استعادة التصنيفات الافتراضية بنجاح 🔄")
+        }
+    }
+
     val featuredBusinesses: StateFlow<List<BusinessEntity>> = allActiveBusinesses
         .map { list -> list.filter { it.isVerified || it.ratingAverage >= 4.5f }.take(6) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -189,12 +270,53 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
-    fun refreshData() {
+    fun refreshData(onComplete: (Boolean, Int) -> Unit = { _, _ -> }) {
         viewModelScope.launch {
             _isRefreshing.value = true
-            kotlinx.coroutines.delay(600) // Smooth pull to refresh feedback
+            val result = repository.triggerIncrementalFirestoreSync(forceFull = true)
             _isRefreshing.value = false
-            _toastMessage.value = "تم تحديث دليل ميت غمر بنجاح ✨"
+            if (result.isSuccess) {
+                val count = result.getOrDefault(0)
+                _toastMessage.value = if (count > 0) {
+                    "تم جلب وتحديث $count نشاط من سحابة Firestore بنجاح ☁️✨"
+                } else {
+                    "تم الاتصال بالسحابة - كافة الأنشطة محدثة بنجاح ✨"
+                }
+                onComplete(true, count)
+            } else {
+                _toastMessage.value = "تعذر الاتصال بالسحابة - تم عرض البيانات المخزنة محلياً ⚡"
+                onComplete(false, 0)
+            }
+        }
+    }
+
+    fun uploadCategoriesToCloud(onComplete: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val res = repository.uploadCategoriesToFirestore()
+            if (res.isSuccess) {
+                val count = res.getOrDefault(0)
+                _toastMessage.value = "تم رفع $count تصنيف إلى Firestore بنجاح ☁️✅"
+                onComplete(true, "تم رفع $count تصنيف بنجاح")
+            } else {
+                val err = res.exceptionOrNull()?.localizedMessage ?: "حدث خطأ"
+                _toastMessage.value = "فشل الرفع: $err"
+                onComplete(false, err)
+            }
+        }
+    }
+
+    fun uploadAllBusinessesToCloud(onComplete: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val res = repository.uploadAllBusinessesToFirestore()
+            if (res.isSuccess) {
+                val count = res.getOrDefault(0)
+                _toastMessage.value = "تم رفع $count نشاط إلى Firestore بنجاح ☁️✅"
+                onComplete(true, "تم رفع $count نشاط بنجاح")
+            } else {
+                val err = res.exceptionOrNull()?.localizedMessage ?: "حدث خطأ"
+                _toastMessage.value = "فشل الرفع: $err"
+                onComplete(false, err)
+            }
         }
     }
 
@@ -243,7 +365,7 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
                     subcategory.keywords.any { kw -> ArabicNormalizer.matches(b.specialty, kw) || ArabicNormalizer.matches(b.description, kw) }
 
             val matchesArea = area == "الكل" || b.area.contains(area) || b.city.contains(area)
-            val matchesOpenNow = !openNow || b.isOpenNow
+            val matchesOpenNow = !openNow || com.example.util.WorkingHoursUtils.isBusinessOpenNow(b.workingHours)
             val matchesVerified = !verified || b.isVerified
             val matchesRating = b.ratingAverage >= ratingThreshold
 
@@ -319,7 +441,7 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // --- Actions & Navigation History ---
-    private val navigationHistory = java.util.ArrayDeque<String>().apply { add(ScreenRoute.Home.route) }
+    private val navigationHistory = java.util.ArrayDeque<String>().apply { add(ScreenRoute.LampIntro.route) }
 
     fun navigateTo(route: String, clearBackStack: Boolean = false) {
         if (clearBackStack) {
@@ -501,6 +623,147 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    // Email Verification & Email Authentication State
+    val pendingVerificationEmail = MutableStateFlow<String>("")
+    val isAuthLoading = MutableStateFlow<Boolean>(false)
+    val authErrorMessage = MutableStateFlow<String?>(null)
+
+    fun clearAuthError() {
+        authErrorMessage.value = null
+    }
+
+    fun setPendingVerificationEmail(email: String) {
+        pendingVerificationEmail.value = email
+    }
+
+    fun registerWithEmail(
+        email: String,
+        password: String,
+        displayName: String,
+        onSuccess: () -> Unit = {}
+    ) {
+        val cleanEmail = email.trim()
+        val cleanPass = password.trim()
+        val cleanName = displayName.trim()
+
+        if (cleanEmail.isBlank() || cleanPass.isBlank()) {
+            authErrorMessage.value = "يرجى إدخال البريد الإلكتروني وكلمة المرور"
+            showToast("يرجى إدخال البريد الإلكتروني وكلمة المرور")
+            return
+        }
+        if (cleanPass.length < 6) {
+            authErrorMessage.value = "كلمة المرور يجب أن لا تقل عن 6 أحرف"
+            showToast("كلمة المرور يجب أن لا تقل عن 6 أحرف")
+            return
+        }
+
+        viewModelScope.launch {
+            isAuthLoading.value = true
+            authErrorMessage.value = null
+            val result = repository.registerWithEmail(cleanEmail, cleanPass, cleanName)
+            isAuthLoading.value = false
+            when (result) {
+                is EmailAuthResult.VerificationRequired -> {
+                    pendingVerificationEmail.value = result.email
+                    showToast("تم إرسال رسالة التحقق إلى ${result.email} ✉️")
+                    navigateTo(ScreenRoute.EmailVerification.route)
+                    onSuccess()
+                }
+                is EmailAuthResult.Error -> {
+                    authErrorMessage.value = result.message
+                    showToast(result.message)
+                }
+                is EmailAuthResult.Success -> {
+                    pendingVerificationEmail.value = result.user.email
+                    navigateTo(ScreenRoute.EmailVerification.route)
+                    onSuccess()
+                }
+            }
+        }
+    }
+
+    fun loginWithEmail(
+        email: String,
+        password: String,
+        onSuccess: () -> Unit = {}
+    ) {
+        val cleanEmail = email.trim()
+        val cleanPass = password.trim()
+
+        if (cleanEmail.isBlank() || cleanPass.isBlank()) {
+            authErrorMessage.value = "يرجى إدخال البريد الإلكتروني وكلمة المرور"
+            showToast("يرجى إدخال البريد الإلكتروني وكلمة المرور")
+            return
+        }
+
+        viewModelScope.launch {
+            isAuthLoading.value = true
+            authErrorMessage.value = null
+            val result = repository.loginWithEmail(cleanEmail, cleanPass)
+            isAuthLoading.value = false
+            when (result) {
+                is EmailAuthResult.Success -> {
+                    showToast("أهلاً بك! تم تسجيل الدخول بنجاح 👋")
+                    _showLoginPrompt.value = false
+                    val actionToRun = pendingAction
+                    pendingAction = null
+                    actionToRun?.invoke()
+                    if (_currentRoute.value == ScreenRoute.Login.route) {
+                        navigateTo(ScreenRoute.Home.route, clearBackStack = true)
+                    } else {
+                        popBackStack()
+                    }
+                    onSuccess()
+                }
+                is EmailAuthResult.VerificationRequired -> {
+                    pendingVerificationEmail.value = result.email
+                    showToast("البريد الإلكتروني غير مؤكد. يرجى تفعيل الحساب.")
+                    navigateTo(ScreenRoute.EmailVerification.route)
+                }
+                is EmailAuthResult.Error -> {
+                    authErrorMessage.value = result.message
+                    showToast(result.message)
+                }
+            }
+        }
+    }
+
+    fun resendVerificationEmail(email: String = "") {
+        val targetEmail = email.trim().ifBlank { pendingVerificationEmail.value.trim() }
+        if (targetEmail.isBlank()) {
+            showToast("البريد الإلكتروني غير محدد")
+            return
+        }
+        viewModelScope.launch {
+            isAuthLoading.value = true
+            val result = repository.resendVerificationEmail(targetEmail)
+            isAuthLoading.value = false
+            if (result.isSuccess) {
+                showToast("تم إعادة إرسال رابط التحقق إلى $targetEmail بنجاح ✉️")
+            } else {
+                showToast("تعذر إعادة إرسال الرابط: ${result.exceptionOrNull()?.localizedMessage ?: ""}")
+            }
+        }
+    }
+
+    fun sendPasswordReset(email: String) {
+        val targetEmail = email.trim().ifBlank { pendingVerificationEmail.value.trim() }
+        if (targetEmail.isBlank()) {
+            showToast("يرجى إدخال البريد الإلكتروني أولاً")
+            return
+        }
+        viewModelScope.launch {
+            isAuthLoading.value = true
+            val result = repository.sendPasswordReset(targetEmail)
+            isAuthLoading.value = false
+            if (result.isSuccess) {
+                showToast("تم إرسال رابط تعيين كلمة المرور إلى $targetEmail ✉️")
+            } else {
+                showToast("تعذر الإرسال: ${result.exceptionOrNull()?.localizedMessage ?: ""}")
+            }
+        }
+    }
+
     fun loginWithProvider(provider: AuthProvider) {
         viewModelScope.launch {
             val result = repository.loginWithProvider(provider)
@@ -510,6 +773,9 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
                 val actionToRun = pendingAction
                 pendingAction = null
                 actionToRun?.invoke()
+                if (_currentRoute.value == ScreenRoute.Login.route) {
+                    navigateTo(ScreenRoute.Home.route, clearBackStack = true)
+                }
             } else {
                 showToast("تعذر تسجيل الدخول، يرجى المحاولة مرة أخرى")
             }
@@ -524,6 +790,7 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
     fun logout() {
         viewModelScope.launch {
             repository.logout()
+            navigateTo(ScreenRoute.Login.route, clearBackStack = true)
             showToast("تم تسجيل الخروج بنجاح")
         }
     }
@@ -615,6 +882,51 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
             repository.saveBusiness(business)
             loadAdminAnalytics()
             showToast("تم حفظ بيانات المنشأة بنجاح ✨")
+        }
+    }
+
+    fun addBusinessDirect(
+        business: BusinessEntity,
+        onSuccess: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            repository.saveBusiness(business)
+            com.example.util.NotificationHelper.showNewBusinessNotification(getApplication(), business)
+            repository.sendNotification(
+                title = "نشاط جديد في ميت غمر 🏪: ${business.name}",
+                body = "${business.categoryName} (${business.specialty}) - ${business.area.ifBlank { business.address }}",
+                categoryId = business.categoryId,
+                businessId = business.id,
+                type = "NEW_BUSINESS",
+                businessName = business.name
+            )
+            repository.logAuditEvent(
+                action = "ADD_BUSINESS_SMART_DROPDOWN",
+                entityType = "BUSINESS",
+                entityId = business.id,
+                detailsJson = "Direct smart dropdown entry: ${business.name} (${business.categoryName} - ${business.specialty})"
+            )
+            loadAdminAnalytics()
+            showToast("تمت إضافة المنشأة (${business.name}) وتفعيل التنبيه بنجاح ✨")
+            onSuccess()
+        }
+    }
+
+    fun updateBusinessDirect(
+        updatedBusiness: BusinessEntity,
+        onSuccess: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            repository.saveBusiness(updatedBusiness)
+            repository.logAuditEvent(
+                action = "UPDATE_BUSINESS_SUPER_ADMIN",
+                entityType = "BUSINESS",
+                entityId = updatedBusiness.id,
+                detailsJson = "Super Admin updated business: ${updatedBusiness.name}"
+            )
+            loadAdminAnalytics()
+            showToast("تم تحديث كافة بيانات ${updatedBusiness.name} بنجاح ✨")
+            onSuccess()
         }
     }
 
@@ -892,11 +1204,45 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun sendBroadcastNotificationAdmin(title: String, body: String, categoryId: String? = null) {
+    fun sendBroadcastNotificationAdmin(
+        title: String,
+        body: String,
+        categoryId: String? = null,
+        type: String = "UPDATE",
+        businessName: String? = null,
+        businessId: String? = null
+    ) {
         viewModelScope.launch {
-            repository.sendNotification(title, body, categoryId, null)
-            repository.logAuditEvent("SEND_BROADCAST_NOTIFICATION", "NOTIFICATION", "global", "عنوان: $title")
-            showToast("تم إرسال الإشعار لجميع المستخدمين بنجاح 🔔")
+            repository.sendNotification(
+                title = title,
+                body = body,
+                categoryId = categoryId,
+                businessId = businessId,
+                type = type,
+                businessName = businessName
+            )
+            repository.logAuditEvent("SEND_BROADCAST_NOTIFICATION", "NOTIFICATION", type, "عنوان: $title")
+            showToast("تم إرسال الإشعار والتنبيه بنجاح 🔔")
+        }
+    }
+
+    fun sendPromotionalOfferAdmin(
+        title: String,
+        body: String,
+        businessName: String? = null,
+        businessId: String? = null
+    ) {
+        viewModelScope.launch {
+            repository.sendNotification(
+                title = title,
+                body = body,
+                categoryId = "cat_offers",
+                businessId = businessId,
+                type = "OFFER",
+                businessName = businessName
+            )
+            repository.logAuditEvent("SEND_PROMOTIONAL_OFFER", "OFFER", businessId ?: "global", "عرض: $title")
+            showToast("تم نشر العرض الترويجي وإشعار المستخدمين 🏷️")
         }
     }
 
@@ -985,6 +1331,10 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun getImportTemplateCsv(importType: BulkImportType): String {
         return repository.generateImportTemplateCsv(importType)
+    }
+
+    fun getImportTemplateExcel(): String {
+        return repository.generateImportTemplateExcel()
     }
 
     fun clearLastImportSummary() {
@@ -1081,4 +1431,201 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
         _aiConfig.value = newConfig
         showToast("تم تحديث إعدادات ونماذج الذكاء الاصطناعي بنجاح ✨")
     }
+
+    // ============================================================
+    // SMART DIRECTORY DATA ENGINE VIEWMODEL EXPOSURES
+    // ============================================================
+
+    val activeDiscoveryJob: StateFlow<DiscoveryJob?> = repository.activeDiscoveryJob
+    val discoveredCandidates: StateFlow<List<CandidateBusiness>> = repository.discoveredCandidates
+    val activeDataConflicts: StateFlow<List<DataConflictItem>> = repository.activeDataConflicts
+    val suggestedCategories: StateFlow<List<SuggestedCategoryItem>> = repository.suggestedCategories
+    val suggestedAreas: StateFlow<List<SuggestedAreaItem>> = repository.suggestedAreas
+    val isEnginePaused: StateFlow<Boolean> = repository.isEnginePaused
+
+    fun approveSuggestedArea(areaId: String) {
+        repository.approveSuggestedArea(areaId)
+        showToast("تم اعتماد وإضافة المنطقة الجديدة إلى النطاق الجغرافي بنجاح 🗺️")
+    }
+
+    fun rejectSuggestedArea(areaId: String) {
+        repository.rejectSuggestedArea(areaId)
+        showToast("تم استبعاد المنطقة المقترحة.")
+    }
+
+    fun computeAreaCoverageReport(): List<com.example.data.model.AreaCoverageStat> {
+        return repository.computeAreaCoverageReport()
+    }
+
+    fun runExpandedRestaurantsDiscoveryTest(onResult: (String) -> Unit) {
+        repository.runExpandedRestaurantsDiscoveryTest(onResult)
+    }
+
+    fun runExpandedDoctorsDiscoveryTest(onResult: (String) -> Unit) {
+        repository.runExpandedDoctorsDiscoveryTest(onResult)
+    }
+
+    fun startDataDiscoveryJob(
+        title: String,
+        targetCategory: String,
+        targetArea: String,
+        sources: List<DiscoverySourceType>,
+        targetCount: Int
+    ) {
+        repository.startDataDiscoveryJob(
+            title = title,
+            targetCategory = targetCategory,
+            targetArea = targetArea,
+            sources = sources,
+            targetCount = targetCount
+        )
+        showToast("تم بدء مهمة جمع واكتشاف البيانات بنجاح 🚀")
+    }
+
+    fun pauseDataDiscoveryJob() {
+        repository.pauseDataDiscoveryJob()
+        showToast("تم إيقاف مهمة الجمع مؤقتاً ⏸️")
+    }
+
+    fun resumeDataDiscoveryJob() {
+        repository.resumeDataDiscoveryJob()
+        showToast("تم استئناف مهمة الجمع الذكي ▶️")
+    }
+
+    fun cancelDataDiscoveryJob() {
+        repository.cancelDataDiscoveryJob()
+        showToast("تم إلغاء مهمة الجمع ⏹️")
+    }
+
+    fun commitDiscoveredCandidatesBatch(candidatesToCommit: List<CandidateBusiness>) {
+        viewModelScope.launch {
+            val response = repository.commitDiscoveredCandidatesBatch(candidatesToCommit)
+            if (response.success) {
+                showToast("تم اعتماد وإضافة ${response.data} نشاط إلى قاعدة البيانات الرئيسية بنجاح 🎉")
+            } else {
+                showToast("خطأ: ${response.message}")
+            }
+        }
+    }
+
+    fun resolveDataConflict(conflictId: String, chosenValue: String, candidateId: String, fieldName: String) {
+        viewModelScope.launch {
+            val response = repository.resolveDataConflict(conflictId, chosenValue, candidateId, fieldName)
+            if (response.success) {
+                showToast("تم حل التعارض واعتماد القيمة بنجاح ✅")
+            } else {
+                showToast("خطأ: ${response.message}")
+            }
+        }
+    }
+
+    fun mergeDuplicateBusiness(masterBusinessId: String, candidate: CandidateBusiness) {
+        viewModelScope.launch {
+            val response = repository.mergeDuplicateBusiness(masterBusinessId, candidate)
+            if (response.success) {
+                showToast("تم دمج النشاط المكرر وإثراء الحقول بنجاح 🔄")
+            } else {
+                showToast("خطأ: ${response.message}")
+            }
+        }
+    }
+
+    fun approveSuggestedCategory(categoryId: String) {
+        repository.approveSuggestedCategory(categoryId)
+        showToast("تمت الموافقة على التصنيف المقترح وإضافته للقائمة ✅")
+    }
+
+    fun rejectSuggestedCategory(categoryId: String) {
+        repository.rejectSuggestedCategory(categoryId)
+        showToast("تم رفض التصنيف المقترح")
+    }
+
+    fun getEngineAnalytics(): EngineAnalyticsSummary {
+        return repository.computeEngineAnalytics()
+    }
+
+    fun getCategoryCoverageReport(): List<CoverageReportCategory> {
+        return repository.computeCategoryCoverageReport()
+    }
+
+    val mergeHistories: StateFlow<List<MergeHistoryEntity>> = repository.getAllMergeHistories()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val recentFieldAudits: StateFlow<List<FieldAuditHistoryEntity>> = repository.getRecentFieldAudits()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun getSourcesForBusiness(businessId: String): Flow<List<BusinessSourceEntity>> {
+        return repository.getSourcesForBusiness(businessId)
+    }
+
+    fun rollbackMerge(mergeHistoryId: String) {
+        viewModelScope.launch {
+            val response = repository.rollbackMerge(mergeHistoryId)
+            if (response.success) {
+                showToast("تم التراجع عن عملية الدمج واستعادة البيانات السابقة بنجاح ↩️")
+            } else {
+                showToast("فشل التراجع: ${response.message}")
+            }
+        }
+    }
+
+    fun runMultiSourceScenarioTest(scenarioId: Int, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val res = repository.runMultiSourceScenarioTest(scenarioId)
+            res.onSuccess { report ->
+                showToast("تم تشغيل سيناريو التحقق بنجاح 🧪")
+                onResult(report)
+            }.onFailure { err ->
+                val errorMsg = "فشل تشغيل السيناريو: ${err.localizedMessage}"
+                showToast(errorMsg)
+                onResult(errorMsg)
+            }
+        }
+    }
+
+    fun syncAllBusinessesToCloudServer(onComplete: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val result = repository.syncAllBusinessesToCloud()
+            result.onSuccess { count ->
+                showToast("تم تثبيت ومزامنة $count نشاط على السيرفر السحابي بنجاح ☁️🚀")
+                onComplete(true, "تم تثبيت $count نشاط بنجاح")
+            }.onFailure { err ->
+                val msg = "فشلت المزامنة السحابية: ${err.localizedMessage}"
+                showToast(msg)
+                onComplete(false, msg)
+            }
+        }
+    }
+
+    fun pullBusinessesFromCloudServer(onComplete: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val result = repository.pullBusinessesFromCloud()
+            result.onSuccess { count ->
+                showToast("تم جلب وتحديث $count نشاط من السيرفر السحابي 🔄")
+                onComplete(true, "تم جلب $count نشاط")
+            }.onFailure { err ->
+                val msg = "فشل جلب البيانات من السيرفر: ${err.localizedMessage}"
+                showToast(msg)
+                onComplete(false, msg)
+            }
+        }
+    }
+
+    fun cleanupCorruptedImportedBusinesses(onComplete: (Int) -> Unit = {}) {
+        viewModelScope.launch {
+            val result = repository.cleanupCorruptedImportedBusinessesAdmin()
+            result.onSuccess { count ->
+                if (count > 0) {
+                    showToast("تم تنظيف وحذف $count نشاط تجاري تالف/وهمي بنجاح 🧹✨")
+                } else {
+                    showToast("لم يتم العثور على أنشطة تالفة أو وهمية في قاعدة البيانات 👍")
+                }
+                onComplete(count)
+            }.onFailure { err ->
+                showToast("فشلت عملية التنظيف: ${err.localizedMessage}")
+                onComplete(0)
+            }
+        }
+    }
 }
+

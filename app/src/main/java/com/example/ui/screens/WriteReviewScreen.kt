@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
@@ -130,6 +131,37 @@ fun WriteReviewScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Cloud Database Sync Indicator Badge
+                    Surface(
+                        color = MetGhamrNavy.copy(alpha = 0.06f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Cloud,
+                                contentDescription = null,
+                                tint = MetGhamrTeal,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "يتم حفظ التقييم ومزامنته سحابياً في قاعدة بيانات Firebase ☁️",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MetGhamrNavy
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
                     Text(
                         text = "كيف كانت تجربتك مع هذا النشاط؟",
                         style = MaterialTheme.typography.bodyMedium.copy(
@@ -197,6 +229,17 @@ fun WriteReviewScreen(
                         minLines = 5,
                         maxLines = 8,
                         isError = !isCommentValid,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.Black,
+                            unfocusedTextColor = Color.Black,
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedBorderColor = MetGhamrNavy,
+                            unfocusedBorderColor = BorderLight,
+                            focusedPlaceholderColor = TextMuted,
+                            unfocusedPlaceholderColor = TextMuted,
+                            cursorColor = MetGhamrNavy
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("review_comment_input")

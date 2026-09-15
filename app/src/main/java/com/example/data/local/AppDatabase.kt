@@ -7,9 +7,13 @@ import androidx.room.RoomDatabase
 import com.example.data.model.AuditLogEntity
 import com.example.data.model.BackupRecordEntity
 import com.example.data.model.BusinessEntity
+import com.example.data.model.BusinessSourceEntity
 import com.example.data.model.ContributionDraftEntity
 import com.example.data.model.FavoriteEntity
+import com.example.data.model.FieldAuditHistoryEntity
+import com.example.data.model.MergeHistoryEntity
 import com.example.data.model.NotificationEntity
+import com.example.data.model.RawDiscoveredRecordEntity
 import com.example.data.model.ReviewEntity
 import com.example.data.model.ReviewHelpfulEntity
 import com.example.data.model.ReviewReportEntity
@@ -19,6 +23,10 @@ import com.example.data.model.UserContributionEntity
 @Database(
     entities = [
         BusinessEntity::class,
+        BusinessSourceEntity::class,
+        FieldAuditHistoryEntity::class,
+        MergeHistoryEntity::class,
+        RawDiscoveredRecordEntity::class,
         ReviewEntity::class,
         ReviewHelpfulEntity::class,
         ReviewReportEntity::class,
@@ -30,7 +38,7 @@ import com.example.data.model.UserContributionEntity
         AuditLogEntity::class,
         BackupRecordEntity::class
     ],
-    version = 7,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

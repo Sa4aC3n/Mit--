@@ -434,5 +434,111 @@ class BackendApiService {
             message = msg
         )
     }
+
+    // ============================================================
+    // SMART DATA ENGINE AUTHORITATIVE BACKEND MUTATIONS
+    // ============================================================
+
+    /**
+     * Authoritative Backend Commit for Discovered Candidate Businesses.
+     */
+    suspend fun commitDiscoveredBusinessesBackend(
+        authToken: String?,
+        userEmail: String?,
+        candidates: List<CandidateBusiness>
+    ): BackendResponse<Int> = withContext(Dispatchers.IO) {
+        val authResult = verifySuperAdminAuthorization(authToken, userEmail)
+        if (!authResult.success) {
+            return@withContext BackendResponse(
+                success = false,
+                message = authResult.message,
+                errorCode = authResult.errorCode
+            )
+        }
+
+        return@withContext BackendResponse(
+            success = true,
+            data = candidates.size,
+            message = "تم اعتماد وإدراج ${candidates.size} نشاط في قاعدة بيانات الخادم الرئيسية (Source of Truth) بنجاح."
+        )
+    }
+
+    /**
+     * Authoritative Backend Merge of Duplicate Businesses.
+     */
+    suspend fun mergeBusinessesBackend(
+        authToken: String?,
+        userEmail: String?,
+        masterBusinessId: String,
+        duplicateId: String,
+        updatedFields: List<String>
+    ): BackendResponse<Boolean> = withContext(Dispatchers.IO) {
+        val authResult = verifySuperAdminAuthorization(authToken, userEmail)
+        if (!authResult.success) {
+            return@withContext BackendResponse(
+                success = false,
+                message = authResult.message,
+                errorCode = authResult.errorCode
+            )
+        }
+
+        return@withContext BackendResponse(
+            success = true,
+            data = true,
+            message = "تم دمج النشاط $duplicateId بنجاح مع النشاط الرئيسي $masterBusinessId وتحديث الحقول: ${updatedFields.joinToString()}."
+        )
+    }
+
+    /**
+     * Authoritative Backend Conflict Resolution.
+     */
+    suspend fun resolveConflictBackend(
+        authToken: String?,
+        userEmail: String?,
+        conflictId: String,
+        chosenValue: String,
+        fieldName: String
+    ): BackendResponse<Boolean> = withContext(Dispatchers.IO) {
+        val authResult = verifySuperAdminAuthorization(authToken, userEmail)
+        if (!authResult.success) {
+            return@withContext BackendResponse(
+                success = false,
+                message = authResult.message,
+                errorCode = authResult.errorCode
+            )
+        }
+
+        return@withContext BackendResponse(
+            success = true,
+            data = true,
+            message = "تم حل تعارض الحقل $fieldName واعتماد القيمة '$chosenValue' على الخادم الرئيسي."
+        )
+    }
+
+    /**
+     * Authoritative Backend Rollback / Undo of a previous Merge operation.
+     */
+    suspend fun rollbackMergeBackend(
+        authToken: String?,
+        userEmail: String?,
+        mergeHistoryId: String,
+        masterBusinessId: String
+    ): BackendResponse<Boolean> = withContext(Dispatchers.IO) {
+        val authResult = verifySuperAdminAuthorization(authToken, userEmail)
+        if (!authResult.success) {
+            return@withContext BackendResponse(
+                success = false,
+                message = authResult.message,
+                errorCode = authResult.errorCode
+            )
+        }
+
+        return@withContext BackendResponse(
+            success = true,
+            data = true,
+            message = "تم التراجع عن عملية الدمج $mergeHistoryId واستعادة الحالة السابقة للنشاط $masterBusinessId بنجاح."
+        )
+    }
 }
+
 

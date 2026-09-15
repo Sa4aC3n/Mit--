@@ -352,6 +352,24 @@ fun AdminDashboardScreen(
             onDismissRequest = { showAddDialog = false },
             title = { Text("إضافة نشاط جديد إلى دليل ميت غمر", fontSize = 16.sp, fontWeight = FontWeight.Bold) },
             text = {
+                val dialogInputColors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    focusedLabelColor = MetGhamrNavy,
+                    unfocusedLabelColor = TextSecondary,
+                    focusedPlaceholderColor = Color.Gray,
+                    unfocusedPlaceholderColor = Color.Gray,
+                    focusedBorderColor = MetGhamrNavy,
+                    unfocusedBorderColor = BorderLight,
+                    cursorColor = MetGhamrNavy
+                )
+                val dialogTextStyle = androidx.compose.ui.text.TextStyle(
+                    color = Color.Black,
+                    fontSize = 13.sp
+                )
+
                 LazyColumn(
                     modifier = Modifier.height(380.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -360,6 +378,8 @@ fun AdminDashboardScreen(
                         OutlinedTextField(
                             value = nameInput,
                             onValueChange = { nameInput = it },
+                            textStyle = dialogTextStyle,
+                            colors = dialogInputColors,
                             label = { Text("اسم النشاط التجاري / العيادة", fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -368,6 +388,8 @@ fun AdminDashboardScreen(
                         OutlinedTextField(
                             value = categoryNameInput,
                             onValueChange = { categoryNameInput = it },
+                            textStyle = dialogTextStyle,
+                            colors = dialogInputColors,
                             label = { Text("الفئة الرئيسية (مطاعم، أطباء، فنيين...)", fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -376,6 +398,8 @@ fun AdminDashboardScreen(
                         OutlinedTextField(
                             value = specialtyInput,
                             onValueChange = { specialtyInput = it },
+                            textStyle = dialogTextStyle,
+                            colors = dialogInputColors,
                             label = { Text("التخصص الدقيق", fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -384,6 +408,8 @@ fun AdminDashboardScreen(
                         OutlinedTextField(
                             value = phoneInput,
                             onValueChange = { phoneInput = it },
+                            textStyle = dialogTextStyle,
+                            colors = dialogInputColors,
                             label = { Text("رقم الهاتف الرئيسي", fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -392,6 +418,8 @@ fun AdminDashboardScreen(
                         OutlinedTextField(
                             value = whatsappInput,
                             onValueChange = { whatsappInput = it },
+                            textStyle = dialogTextStyle,
+                            colors = dialogInputColors,
                             label = { Text("رقم الواتساب (مثال: 201012345678)", fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -400,6 +428,8 @@ fun AdminDashboardScreen(
                         OutlinedTextField(
                             value = areaInput,
                             onValueChange = { areaInput = it },
+                            textStyle = dialogTextStyle,
+                            colors = dialogInputColors,
                             label = { Text("المنطقة أو القرية (شارع الحرية، صهرجت الكبرى...)", fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -408,6 +438,8 @@ fun AdminDashboardScreen(
                         OutlinedTextField(
                             value = addressInput,
                             onValueChange = { addressInput = it },
+                            textStyle = dialogTextStyle,
+                            colors = dialogInputColors,
                             label = { Text("العنوان التفصيلي", fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -416,6 +448,8 @@ fun AdminDashboardScreen(
                         OutlinedTextField(
                             value = hoursInput,
                             onValueChange = { hoursInput = it },
+                            textStyle = dialogTextStyle,
+                            colors = dialogInputColors,
                             label = { Text("مواعيد العمل", fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -424,6 +458,8 @@ fun AdminDashboardScreen(
                         OutlinedTextField(
                             value = descInput,
                             onValueChange = { descInput = it },
+                            textStyle = dialogTextStyle,
+                            colors = dialogInputColors,
                             label = { Text("وصف مختصر", fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth()
                         )

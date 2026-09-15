@@ -1,35 +1,48 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.example.data.model.CategoryItem
 import com.example.ui.components.BusinessCard
 import com.example.ui.components.CompactFeaturedCard
+import com.example.ui.components.EmptyStateView
 import com.example.ui.components.SkeletonBusinessCard
+import com.example.ui.components.getCategoryPastelColors
+import com.example.ui.components.resolveCategoryIcon
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.DirectoryViewModel
+import com.example.ui.viewmodel.ScreenRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,7 +50,8 @@ fun HomeScreen(
     viewModel: DirectoryViewModel,
     onNavigateToSearch: () -> Unit,
     onNavigateToCategories: () -> Unit,
-    onNavigateToAiAssistant: () -> Unit = {}
+    onNavigateToAiAssistant: () -> Unit = {},
+    onNavigateToMap: () -> Unit = {}
 ) {
     val categories by viewModel.categoriesWithCounts.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -50,6 +64,7 @@ fun HomeScreen(
     val topRatedBusinesses by viewModel.topRatedBusinesses.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val firestoreSyncStatus by viewModel.firestoreSyncStatus.collectAsState()
 
     val favIds = favorites.map { it.businessId }.toSet()
 
@@ -58,147 +73,50 @@ fun HomeScreen(
         "أتميدة", "كوم النور", "سنفا", "أوليلة", "دماص", "شارع الحرية", "شارع المحطة"
     )
 
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
+    // حساب موضع بداية نتائج البحث بدقة
+    val resultsHeaderIndex = remember(featuredBusinesses.size, topRatedBusinesses.size, searchQuery, selectedCategory) {
+        var idx = 2 // home_header (0) + categories_section (1)
+        if (featuredBusinesses.isNotEmpty() && searchQuery.isEmpty() && selectedCategory == null) {
+            idx++
+        }
+        if (topRatedBusinesses.isNotEmpty() && searchQuery.isEmpty() && selectedCategory == null) {
+            idx++
+        }
+        idx++ // area_filters_section
+        idx // main_list_header
+    }
+
+    LaunchedEffect(selectedCategory) {
+        if (selectedCategory != null) {
+            delay(100)
+            listState.animateScrollToItem(index = resultsHeaderIndex)
+        }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .background(SurfaceLight),
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
-        // --- 1. Header & Identity ---
+        // --- 1. Header & Identity: Search & Smart AI Assistant Side-by-Side ---
         item(key = "home_header") {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(MetGhamrNavy, MetGhamrBlue)
-                        )
-                    )
-                    .padding(16.dp)
+            Surface(
+                color = SurfaceCard,
+                tonalElevation = 1.dp,
+                border = BorderStroke(1.dp, BorderLight.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column {
-                            Text(
-                                text = "أهلاً بك 👋",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    color = MetGhamrGoldLight,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "دليلك لكل ما تحتاجه في ميت غمر",
-                                style = MaterialTheme.typography.headlineSmall.copy(
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp
-                                )
-                            )
-                        }
-
-                        // Offline/Cached Badge Indicator
-                        Surface(
-                            color = Color.White.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier.clickable { viewModel.refreshData() }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(OpenGreen)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = if (isRefreshing) "جاري التحديث..." else "بيانات محليّة ⚡",
-                                    color = Color.White,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // --- Prominent Main AI Assistant Button ---
-                    Surface(
-                        onClick = onNavigateToAiAssistant,
-                        shape = RoundedCornerShape(16.dp),
-                        color = Color.White.copy(alpha = 0.15f),
-                        border = androidx.compose.foundation.BorderStroke(
-                            width = 1.dp,
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(MetGhamrGold, Color.White.copy(alpha = 0.6f))
-                            )
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("main_ai_button")
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            Brush.linearGradient(
-                                                colors = listOf(MetGhamrGold, MetGhamrTeal)
-                                            )
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("✨", fontSize = 16.sp)
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = "🤖 مساعد ميت غمر الذكي",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                    Text(
-                                        text = "اسأل بالعامية عن أي مطعم، طبيب، أو خدمة بالدليل",
-                                        fontSize = 10.sp,
-                                        color = Color.White.copy(alpha = 0.85f)
-                                    )
-                                }
-                            }
-
-                            Surface(
-                                color = MetGhamrGold,
-                                shape = RoundedCornerShape(20.dp)
-                            ) {
-                                Text(
-                                    text = "اسأل الآن 💬",
-                                    color = MetGhamrNavy,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // --- 2. Prominent Search Bar ---
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    // شريط البحث الموحد والشامل (All-in-One Search & AI Bar)
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = {
@@ -206,55 +124,159 @@ fun HomeScreen(
                         },
                         placeholder = {
                             Text(
-                                text = "ابحث عن مطعم، طبيب، صنايعي، مصنع...",
+                                text = "ابحث عن مطعم، محل، عيادة، خدمة...",
                                 fontSize = 13.sp,
-                                color = TextSecondary
+                                color = TextMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Outlined.Search,
                                 contentDescription = "بحث",
-                                tint = MetGhamrNavy
+                                tint = SkyBlueDark,
+                                modifier = Modifier.size(22.dp)
                             )
                         },
                         trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "مسح",
-                                        tint = Color.Gray
-                                    )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(end = 6.dp)
+                            ) {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(
+                                        onClick = { viewModel.updateSearchQuery("") },
+                                        modifier = Modifier.size(30.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "مسح",
+                                            tint = TextSecondary,
+                                            modifier = Modifier.size(17.dp)
+                                        )
+                                    }
                                 }
-                            } else {
-                                IconButton(onClick = onNavigateToSearch) {
-                                    Icon(
-                                        imageVector = Icons.Default.Tune,
-                                        contentDescription = "بحث متقدم",
-                                        tint = MetGhamrNavy
-                                    )
+
+                                // زر المساعد الذكي المدمج بتدرج لوني انسيابي (All-in-One AI Pill)
+                                Surface(
+                                    onClick = onNavigateToAiAssistant,
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = Color.Transparent,
+                                    shadowElevation = 2.dp,
+                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                                    modifier = Modifier
+                                        .height(38.dp)
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                listOf(
+                                                    Color(0xFF00C6FF),
+                                                    Color(0xFF0072FF)
+                                                )
+                                            )
+                                        )
+                                        .testTag("home_ai_assistant_banner")
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .padding(horizontal = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(Color.White),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.SmartToy,
+                                                contentDescription = "المساعد الذكي",
+                                                tint = Color(0xFF0072FF),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+
+                                        Text(
+                                            text = "المساعد الذكي",
+                                            style = MaterialTheme.typography.labelMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White,
+                                                fontSize = 11.5.sp
+                                            ),
+                                            maxLines = 1
+                                        )
+
+                                        Icon(
+                                            imageVector = Icons.Default.AutoAwesome,
+                                            contentDescription = null,
+                                            tint = Color(0xFFFFD54F),
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
                                 }
                             }
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(26.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            focusedBorderColor = MetGhamrGold,
-                            unfocusedBorderColor = Color.Transparent
+                            focusedContainerColor = SurfaceLight,
+                            unfocusedContainerColor = SurfaceLight,
+                            focusedBorderColor = SkyBluePrimary,
+                            unfocusedBorderColor = BorderLight,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .heightIn(min = 52.dp)
                             .testTag("home_search_input")
                     )
                 }
             }
         }
 
-        // --- 3. Quick Categories Section ---
+        // --- 4. Categories Colorful Cubes Matrix (4 cubes per row default) ---
         item(key = "categories_section") {
+            var gridColumns by remember { mutableIntStateOf(4) }
+
+            val cubesList12 = remember {
+                listOf(
+                    CategoryCubeItem("cat_restaurants", "مطاعم", Icons.Default.Restaurant, Color(0xFFFF5252), "cat_restaurants"),
+                    CategoryCubeItem("cat_shops", "محلات", Icons.Default.Storefront, Color(0xFF66BB6A), "cat_shops"),
+                    CategoryCubeItem("cat_doctors", "أطباء", Icons.Default.MedicalServices, Color(0xFF9575CD), "cat_doctors"),
+                    CategoryCubeItem("cat_hospitals", "مستشفيات", Icons.Default.LocalHospital, Color(0xFF26C6DA), "cat_hospitals"),
+                    CategoryCubeItem("cat_cafes", "كافيهات", Icons.Default.LocalCafe, Color(0xFFEC407A), "cat_cafes"),
+                    CategoryCubeItem("cat_technicians", "فنيين", Icons.Default.Build, Color(0xFF48CFAD), "cat_technicians"),
+                    CategoryCubeItem("cat_factories", "مصانع", Icons.Default.Factory, Color(0xFFFFA726), "cat_factories"),
+                    CategoryCubeItem("cat_companies", "شركات", Icons.Default.Business, Color(0xFF29B6F6), "cat_companies"),
+                    CategoryCubeItem("cat_pharmacies", "صيدليات", Icons.Default.LocalPharmacy, Color(0xFF00ACC1), "cat_pharmacies"),
+                    CategoryCubeItem("cat_universities", "تعليم", Icons.Default.School, Color(0xFF5C6BC0), "cat_universities"),
+                    CategoryCubeItem("cat_automotive", "سيارات", Icons.Default.DirectionsCar, Color(0xFF7E57C2), "cat_automotive"),
+                    CategoryCubeItem("more", "المزيد", Icons.Default.Apps, Color(0xFFAB47BC), null)
+                )
+            }
+
+            val cubesList9 = remember {
+                listOf(
+                    CategoryCubeItem("cat_restaurants", "مطاعم", Icons.Default.Restaurant, Color(0xFFFF5252), "cat_restaurants"),
+                    CategoryCubeItem("cat_shops", "محلات", Icons.Default.Storefront, Color(0xFF66BB6A), "cat_shops"),
+                    CategoryCubeItem("cat_doctors", "أطباء", Icons.Default.MedicalServices, Color(0xFF9575CD), "cat_doctors"),
+                    CategoryCubeItem("cat_hospitals", "مستشفيات", Icons.Default.LocalHospital, Color(0xFF26C6DA), "cat_hospitals"),
+                    CategoryCubeItem("cat_cafes", "كافيهات", Icons.Default.LocalCafe, Color(0xFFEC407A), "cat_cafes"),
+                    CategoryCubeItem("cat_technicians", "فنيين", Icons.Default.Build, Color(0xFF48CFAD), "cat_technicians"),
+                    CategoryCubeItem("cat_factories", "مصانع", Icons.Default.Factory, Color(0xFFFFA726), "cat_factories"),
+                    CategoryCubeItem("cat_companies", "شركات", Icons.Default.Business, Color(0xFF29B6F6), "cat_companies"),
+                    CategoryCubeItem("more", "المزيد", Icons.Default.Apps, Color(0xFFAB47BC), null)
+                )
+            }
+
+            val activeCubes = if (gridColumns == 4) cubesList12 else cubesList9
+
             Column(modifier = Modifier.padding(top = 16.dp)) {
                 Row(
                     modifier = Modifier
@@ -270,35 +292,118 @@ fun HomeScreen(
                             color = TextPrimary
                         )
                     )
-                    TextButton(onClick = onNavigateToCategories) {
-                        Text(
-                            text = "عرض الكل (${categories.size})",
-                            color = MetGhamrTeal,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Matrix Column Toggle (4 cubes vs 3 cubes)
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = SurfaceLight,
+                            border = BorderStroke(1.dp, BorderLight),
+                            modifier = Modifier.padding(end = 6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (gridColumns == 4) SkyBluePrimary else Color.Transparent,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable { gridColumns = 4 }
+                                ) {
+                                    Text(
+                                        text = "4 مكعبات",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = if (gridColumns == 4) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (gridColumns == 4) Color.White else TextSecondary,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                    )
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (gridColumns == 3) SkyBluePrimary else Color.Transparent,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable { gridColumns = 3 }
+                                ) {
+                                    Text(
+                                        text = "3 مكعبات",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = if (gridColumns == 3) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (gridColumns == 3) Color.White else TextSecondary,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        TextButton(
+                            onClick = onNavigateToCategories,
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "عرض الكل",
+                                color = SkyBluePrimary,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                // Matrix of Cubes Grid
+                val chunkedRows = activeCubes.chunked(gridColumns)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(categories, key = { it.id }) { category ->
-                        val isSelected = selectedCategory?.id == category.id
-                        CategoryCarouselChip(
-                            category = category,
-                            isSelected = isSelected,
-                            onClick = {
-                                if (isSelected) {
-                                    viewModel.selectCategory(null)
-                                } else {
-                                    viewModel.selectCategory(category)
+                    chunkedRows.forEach { rowItems ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowItems.forEach { cube ->
+                                Box(modifier = Modifier.weight(1f)) {
+                                    val isSelected = selectedCategory?.id == cube.categoryId
+                                    CategoryCubeCard(
+                                        title = cube.title,
+                                        icon = cube.icon,
+                                        backgroundColor = cube.color,
+                                        isSelected = isSelected,
+                                        onClick = {
+                                            if (cube.id == "more") {
+                                                onNavigateToCategories()
+                                            } else {
+                                                val found = categories.find {
+                                                    it.id == cube.categoryId || it.nameAr.contains(cube.title)
+                                                }
+                                                val isDeselecting = found != null && selectedCategory?.id == found.id
+                                                if (found != null) {
+                                                    if (isDeselecting) {
+                                                        viewModel.selectCategory(null)
+                                                    } else {
+                                                        viewModel.selectCategory(found)
+                                                    }
+                                                } else {
+                                                    viewModel.updateSearchQuery(cube.title)
+                                                }
+                                                if (!isDeselecting) {
+                                                    coroutineScope.launch {
+                                                        delay(120)
+                                                        listState.animateScrollToItem(index = 3)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    )
                                 }
                             }
-                        )
+                        }
                     }
                 }
             }
@@ -323,12 +428,12 @@ fun HomeScreen(
                             )
                         )
                         Surface(
-                            color = MetGhamrNavy.copy(alpha = 0.08f),
+                            color = SkyBlueContainer,
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
                                 text = "موصى بها",
-                                color = MetGhamrNavy,
+                                color = SkyBlueDark,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -419,7 +524,7 @@ fun HomeScreen(
                                 )
                             },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MetGhamrNavy,
+                                selectedContainerColor = SkyBluePrimary,
                                 selectedLabelColor = Color.White,
                                 containerColor = SurfaceCard,
                                 labelColor = TextPrimary
@@ -446,8 +551,9 @@ fun HomeScreen(
                         },
                         label = { Text("مفتوح الآن فقط", fontSize = 11.sp) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = OpenGreen,
-                            selectedLabelColor = Color.White
+                            selectedContainerColor = LettuceGreen,
+                            selectedLabelColor = Color.White,
+                            selectedLeadingIconColor = Color.White
                         )
                     )
 
@@ -463,8 +569,9 @@ fun HomeScreen(
                         },
                         label = { Text("موثق فقط ✔️", fontSize = 11.sp) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = VerifiedBlue,
-                            selectedLabelColor = Color.White
+                            selectedContainerColor = SkyBluePrimary,
+                            selectedLabelColor = Color.White,
+                            selectedLeadingIconColor = Color.White
                         )
                     )
                 }
@@ -476,17 +583,49 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 20.dp, start = 16.dp, end = 16.dp, bottom = 10.dp),
+                    .padding(top = 18.dp, start = 16.dp, end = 16.dp, bottom = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = if (selectedCategory != null) "نتائج ${selectedCategory?.nameAr}" else "جميع الأنشطة والخدمات",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = if (selectedCategory != null) "نتائج ${selectedCategory?.nameAr}" else "جميع الأنشطة والخدمات",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
                     )
-                )
+                    if (selectedCategory != null) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = SkyBlueContainer,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    viewModel.selectCategory(null)
+                                    coroutineScope.launch {
+                                        listState.animateScrollToItem(0)
+                                    }
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "إلغاء التصفية ✕",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SkyBlueDark
+                                )
+                            }
+                        }
+                    }
+                }
                 Text(
                     text = "${businesses.size} نشاط",
                     style = MaterialTheme.typography.bodySmall.copy(
@@ -497,41 +636,27 @@ fun HomeScreen(
             }
         }
 
-        // --- 8. Businesses List or Empty State ---
+        // --- 8. Businesses List or Empty State / Loading ---
         if (businesses.isEmpty()) {
-            item(key = "empty_state") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.SearchOff,
-                            contentDescription = null,
-                            tint = TextSecondary,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "عذراً، لا توجد نتائج مطابقة لمحددات البحث الحالية.",
-                            color = TextSecondary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(
-                            onClick = {
-                                viewModel.updateSearchQuery("")
-                                viewModel.selectCategory(null)
-                                viewModel.selectArea("الكل")
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MetGhamrNavy)
-                        ) {
-                            Text("إعادة ضبط الفلاتر", fontSize = 12.sp)
-                        }
+            if (firestoreSyncStatus.isSyncing || isRefreshing) {
+                items(3, key = { "loading_skeleton_$it" }) {
+                    Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                        SkeletonBusinessCard()
                     }
+                }
+            } else {
+                item(key = "empty_state") {
+                    EmptyStateView(
+                        icon = Icons.Default.SearchOff,
+                        title = "لا توجد نتائج مطابقة",
+                        description = "لم نعثر على أي أنشطة تطابق محددات البحث الحالية في ميت غمر. جرب تغيير الكلمات المفتاحية أو إعادة ضبط الفلاتر.",
+                        actionButtonText = "إعادة ضبط الفلاتر",
+                        onActionClick = {
+                            viewModel.updateSearchQuery("")
+                            viewModel.selectCategory(null)
+                            viewModel.selectArea("الكل")
+                        }
+                    )
                 }
             }
         } else {
@@ -551,17 +676,77 @@ fun HomeScreen(
     }
 }
 
+data class CategoryCubeItem(
+    val id: String,
+    val title: String,
+    val icon: ImageVector,
+    val color: Color,
+    val categoryId: String? = null
+)
+
+@Composable
+fun CategoryCubeCard(
+    title: String,
+    icon: ImageVector,
+    backgroundColor: Color,
+    isSelected: Boolean = false,
+    onClick: () -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = backgroundColor
+        ),
+        border = if (isSelected) BorderStroke(2.5.dp, Color.White) else null,
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 6.dp else 2.dp, pressedElevation = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .testTag("category_cube_$title")
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 10.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = Color.White,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(modifier = Modifier.height(7.dp))
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
 @Composable
 fun CategoryCarouselChip(
     category: CategoryItem,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val (catBg, catIconColor) = getCategoryPastelColors(category.id)
+
     Card(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) MetGhamrNavy else SurfaceCard
+            containerColor = if (isSelected) SkyBluePrimary else SurfaceCard
         ),
+        border = BorderStroke(1.dp, if (isSelected) SkyBluePrimary else BorderLight),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = Modifier
             .clickable { onClick() }
@@ -575,28 +760,13 @@ fun CategoryCarouselChip(
                 modifier = Modifier
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(Color(category.colorHex).copy(alpha = if (isSelected) 0.9f else 0.15f)),
+                    .background(if (isSelected) Color.White.copy(alpha = 0.25f) else catBg),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = when (category.id) {
-                        "cat_restaurants" -> Icons.Default.Restaurant
-                        "cat_cafes" -> Icons.Default.Coffee
-                        "cat_doctors" -> Icons.Default.MedicalServices
-                        "cat_hospitals" -> Icons.Default.LocalHospital
-                        "cat_radiology" -> Icons.Default.Biotech
-                        "cat_technicians" -> Icons.Default.Handyman
-                        "cat_factories" -> Icons.Default.Factory
-                        "cat_clubs" -> Icons.Default.FitnessCenter
-                        "cat_pharmacies" -> Icons.Default.LocalPharmacy
-                        "cat_shops" -> Icons.Default.ShoppingBag
-                        "cat_automotive" -> Icons.Default.DirectionsCar
-                        "cat_education" -> Icons.Default.School
-                        "cat_home_events" -> Icons.Default.Event
-                        else -> Icons.Default.AccountBalance
-                    },
+                    imageVector = resolveCategoryIcon(category.iconName, category.id),
                     contentDescription = null,
-                    tint = if (isSelected) Color.White else Color(category.colorHex),
+                    tint = if (isSelected) Color.White else catIconColor,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -604,7 +774,7 @@ fun CategoryCarouselChip(
             Text(
                 text = category.nameAr,
                 style = MaterialTheme.typography.bodySmall.copy(
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                     color = if (isSelected) Color.White else TextPrimary,
                     fontSize = 12.sp
                 )
