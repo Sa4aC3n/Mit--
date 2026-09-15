@@ -271,6 +271,22 @@ fun ContributionCard(
                 )
             }
 
+            if (item.syncStatus == "WAITING_FOR_UPLOAD") {
+                Spacer(modifier = Modifier.height(6.dp))
+                Surface(
+                    color = Color(0xFFFFF3CD),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = "⏳ محفوظ محلياً - بانتظار الاتصال بالإنترنت للرفع",
+                        fontSize = 11.sp,
+                        color = Color(0xFF856404),
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(10.dp))
 
             Row(

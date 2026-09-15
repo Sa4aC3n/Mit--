@@ -184,7 +184,7 @@ interface DirectoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertContributions(contributions: List<UserContributionEntity>)
 
-    @Query("SELECT * FROM user_contributions WHERE syncStatus = 'PENDING_UPLOAD'")
+    @Query("SELECT * FROM user_contributions WHERE syncStatus = 'PENDING_UPLOAD' OR syncStatus = 'WAITING_FOR_UPLOAD'")
     suspend fun getPendingUploadContributions(): List<UserContributionEntity>
 
     @Query("UPDATE user_contributions SET syncStatus = :syncStatus WHERE id = :id")

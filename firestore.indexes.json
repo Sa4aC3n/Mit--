@@ -19,6 +19,14 @@
       ]
     },
     {
+      "collectionGroup": "businesses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "normalizedName", "order": "ASCENDING" },
+        { "fieldPath": "categoryId", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "contributions",
       "queryScope": "COLLECTION",
       "fields": [

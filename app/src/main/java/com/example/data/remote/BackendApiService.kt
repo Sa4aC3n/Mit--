@@ -7,6 +7,7 @@ import com.example.util.ArabicNormalizer
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -64,12 +65,13 @@ class BackendApiService {
 
     /**
      * Authoritative Backend Contribution Approval Mutation.
-     * Executes atomic Cloud Firestore batch/transaction:
-     * 1. Idempotency Check: if already approved, returns existing business without duplication.
-     * 2. Deduplication Check: searches Firestore /businesses by phone and normalized Arabic name.
-     * 3. Publishes/Merges into /businesses with isPublished = true, isDeleted = false.
-     * 4. Updates /contributions with status = APPROVED, approvedAt, approvedBy, publishedBusinessId.
-     * 5. Writes an immutable audit trail entry in /audit_logs.
+     * Invokes Cloud Function `approveContribution` exclusively via Firebase Functions SDK.
+     * The Cloud Function executes in a privileged environment with Admin SDK, verifies admin custom claims,
+     * performs multi-signal deduplication, publishes the unified record to /businesses,
+     * updates /contributions, and writes /audit_logs.
+     *
+     * After successful Cloud Function execution, the published document is fetched from Firestore
+     * and returned to update local Room cache.
      */
     suspend fun approveContribution(
         authToken: String?,
@@ -84,235 +86,68 @@ class BackendApiService {
             return@withContext BackendResponse(success = false, message = authResult.message, errorCode = authResult.errorCode)
         }
 
-        val db = try {
-            FirebaseFirestore.getInstance()
-        } catch (e: Exception) {
-            null
-        }
-
-        if (db == null) {
-            return@withContext BackendResponse(
-                success = false,
-                message = "خدمة السحابة غير متاحة حالياً لإتمام النشر المعتمد."
-            )
-        }
-
         try {
-            val contribRef = db.collection(FirebaseFirestoreSyncManager.COL_CONTRIBUTIONS).document(contributionId)
-            val contribSnapshot = contribRef.get().await()
-
-            val status = contribSnapshot.getString("status") ?: preloadedContribution?.status ?: "PENDING"
-            val existingPublishedBizId = contribSnapshot.getString("publishedBusinessId") ?: preloadedContribution?.publishedBusinessId
-
-            // 1. Idempotency Check: if already approved, return existing published business without re-publishing
-            if (status == "APPROVED" && !existingPublishedBizId.isNullOrBlank()) {
-                val existingBizDoc = db.collection(FirebaseFirestoreSyncManager.COL_BUSINESSES)
-                    .document(existingPublishedBizId).get().await()
-                val existingBiz = if (existingBizDoc.exists()) {
-                    FirebaseFirestoreSyncManager.documentToBusiness(existingBizDoc)
-                } else null
-
-                return@withContext BackendResponse(
-                    success = true,
-                    data = existingBiz,
-                    message = "تم اعتماد هذا الطلب مسبقاً (عملية متكررة آمنة Idempotent) مع الحفاظ على المعرف $existingPublishedBizId."
-                )
-            }
-
-            // Extract candidate data from payload JSON or contribution record
-            val payloadJson = contribSnapshot.getString("payloadJson") ?: preloadedContribution?.payloadJson
-            var rawName = contribSnapshot.getString("businessName") ?: preloadedContribution?.businessName ?: "نشاط معتمد"
-            var rawPhone = ""
-            var rawSecondaryPhone: String? = null
-            var rawWhatsapp: String? = null
-            var rawCategory = contribSnapshot.getString("categoryId") ?: preloadedContribution?.categoryId ?: "cat_general"
-            var rawCategoryName = "خدمات معتمدة"
-            var rawSpecialty = "نشاط تجاري موثق"
-            var rawDescription = "تم التحقق والاعتماد عبر نظام المشرفين الرسمي لدليل ميت غمر"
-            var rawAddress = "ميت غمر"
-            var rawArea = "وسط البلد"
-            var rawFacebook: String? = null
-            var rawWebsite: String? = null
-            var rawHours = "8:00 ص - 10:00 م"
-            var rawLat = 30.7183
-            var rawLng = 31.2568
-            var rawImageUrl: String? = null
-
-            if (!payloadJson.isNullOrBlank()) {
-                try {
-                    val json = JSONObject(payloadJson)
-                    if (json.has("name")) rawName = json.getString("name")
-                    if (json.has("phone")) rawPhone = json.getString("phone")
-                    if (json.has("secondaryPhone") && !json.isNull("secondaryPhone")) rawSecondaryPhone = json.getString("secondaryPhone")
-                    if (json.has("whatsapp") && !json.isNull("whatsapp")) rawWhatsapp = json.getString("whatsapp")
-                    if (json.has("categoryId")) rawCategory = json.getString("categoryId")
-                    if (json.has("categoryName")) rawCategoryName = json.getString("categoryName")
-                    if (json.has("specialization")) rawSpecialty = json.getString("specialization")
-                    if (json.has("description")) rawDescription = json.getString("description")
-                    if (json.has("address")) rawAddress = json.getString("address")
-                    if (json.has("district")) rawArea = json.getString("district")
-                    if (json.has("facebookUrl") && !json.isNull("facebookUrl")) rawFacebook = json.getString("facebookUrl")
-                    if (json.has("websiteUrl") && !json.isNull("websiteUrl")) rawWebsite = json.getString("websiteUrl")
-                    if (json.has("workingHours")) rawHours = json.getString("workingHours")
-                    if (json.has("lat")) rawLat = json.getDouble("lat")
-                    if (json.has("lng")) rawLng = json.getDouble("lng")
-                    if (json.has("imageUrls")) {
-                        val arr = json.getJSONArray("imageUrls")
-                        if (arr.length() > 0) rawImageUrl = arr.getString(0)
-                    }
-                } catch (e: Exception) {
-                    Log.w("BackendApiService", "Error parsing payload json: ${e.message}")
-                }
-            }
-
-            val normName = ArabicNormalizer.normalize(rawName)
-            val normPhone = ArabicNormalizer.normalizePhone(rawPhone)
-
-            // 2. Authoritative Deduplication Check in Firestore /businesses
-            var matchedBusinessId: String? = null
-            var matchedBusinessEntity: BusinessEntity? = null
-
-            if (normPhone.isNotBlank()) {
-                val phoneQuery = db.collection(FirebaseFirestoreSyncManager.COL_BUSINESSES)
-                    .whereEqualTo("phone", rawPhone)
-                    .limit(1)
-                    .get().await()
-
-                if (!phoneQuery.isEmpty) {
-                    val matchDoc = phoneQuery.documents.first()
-                    matchedBusinessId = matchDoc.id
-                    matchedBusinessEntity = FirebaseFirestoreSyncManager.documentToBusiness(matchDoc)
-                }
-            }
-
-            if (matchedBusinessId == null && normName.isNotBlank()) {
-                val nameQuery = db.collection(FirebaseFirestoreSyncManager.COL_BUSINESSES)
-                    .whereEqualTo("name", rawName)
-                    .limit(1)
-                    .get().await()
-
-                if (!nameQuery.isEmpty) {
-                    val matchDoc = nameQuery.documents.first()
-                    matchedBusinessId = matchDoc.id
-                    matchedBusinessEntity = FirebaseFirestoreSyncManager.documentToBusiness(matchDoc)
-                }
-            }
-
-            val now = System.currentTimeMillis()
-            val targetBusinessId = matchedBusinessId ?: ("biz_" + contributionId.replace("contrib_", "").take(10))
-
-            val finalBusinessToPublish = if (matchedBusinessEntity != null) {
-                // Merge data into existing unified record
-                matchedBusinessEntity.copy(
-                    phoneSecondary = rawSecondaryPhone ?: matchedBusinessEntity.phoneSecondary,
-                    whatsapp = rawWhatsapp ?: matchedBusinessEntity.whatsapp,
-                    address = if (rawAddress.isNotBlank()) rawAddress else matchedBusinessEntity.address,
-                    area = if (rawArea.isNotBlank()) rawArea else matchedBusinessEntity.area,
-                    facebookUrl = rawFacebook ?: matchedBusinessEntity.facebookUrl,
-                    websiteUrl = rawWebsite ?: matchedBusinessEntity.websiteUrl,
-                    workingHours = if (rawHours.isNotBlank()) rawHours else matchedBusinessEntity.workingHours,
-                    isVerified = true,
-                    isActive = true,
-                    isPublished = true,
-                    isDeleted = false,
-                    verificationStatus = "VERIFIED",
-                    updatedAt = now
-                )
-            } else {
-                // New business entity
-                BusinessEntity(
-                    id = targetBusinessId,
-                    name = rawName,
-                    categoryId = rawCategory,
-                    categoryName = rawCategoryName,
-                    specialty = rawSpecialty,
-                    description = rawDescription,
-                    phone = rawPhone,
-                    phoneSecondary = rawSecondaryPhone,
-                    whatsapp = rawWhatsapp,
-                    city = "مدينة ميت غمر",
-                    address = rawAddress,
-                    area = rawArea,
-                    facebookUrl = rawFacebook,
-                    websiteUrl = rawWebsite,
-                    latitude = rawLat,
-                    longitude = rawLng,
-                    workingHours = rawHours,
-                    isOpenNow = true,
-                    isVerified = true,
-                    isActive = true,
-                    isPublished = true,
-                    isDeleted = false,
-                    ratingAverage = 5.0f,
-                    ratingCount = 1,
-                    viewCount = 1,
-                    imageUrl = rawImageUrl,
-                    verificationStatus = "VERIFIED",
-                    dataQualityScore = 90,
-                    approvedContributionId = contributionId,
-                    createdAt = now,
-                    lastVerifiedAt = now,
-                    updatedAt = now
-                )
-            }
-
-            // 3. Atomic Batch / Transaction Mutation
-            val batch = db.batch()
-
-            // A. Write to published businesses collection
-            val bizRef = db.collection(FirebaseFirestoreSyncManager.COL_BUSINESSES).document(targetBusinessId)
-            batch.set(bizRef, FirebaseFirestoreSyncManager.businessToFirestoreMap(finalBusinessToPublish), SetOptions.merge())
-
-            // B. Update contribution record
-            val contribUpdateMap = mapOf<String, Any?>(
-                "status" to "APPROVED",
-                "approvedAt" to FieldValue.serverTimestamp(),
-                "approvedBy" to adminUserId,
-                "publishedBusinessId" to targetBusinessId,
-                "moderatorNote" to (moderatorNote ?: "تم التحقق والاعتماد بنجاح"),
-                "updatedAt" to FieldValue.serverTimestamp()
-            )
-            batch.set(contribRef, contribUpdateMap, SetOptions.merge())
-
-            // C. Write to audit_logs
-            val auditRef = db.collection(FirebaseFirestoreSyncManager.COL_AUDIT_LOGS).document()
-            val auditMap = mapOf(
-                "id" to auditRef.id,
-                "action" to "APPROVE_CONTRIBUTION",
-                "adminId" to adminUserId,
-                "adminEmail" to adminEmail,
+            val functions = FirebaseFunctions.getInstance()
+            val payload = hashMapOf<String, Any?>(
                 "contributionId" to contributionId,
-                "publishedBusinessId" to targetBusinessId,
-                "isMergedWithExisting" to (matchedBusinessId != null),
-                "timestamp" to FieldValue.serverTimestamp()
+                "moderatorNote" to (moderatorNote ?: "")
             )
-            batch.set(auditRef, auditMap)
 
-            // Commit atomic batch to Firestore
-            batch.commit().await()
+            val callResult = functions
+                .getHttpsCallable("approveContribution")
+                .call(payload)
+                .await()
+
+            val resultMap = callResult.data as? Map<*, *>
+            val publishedBusinessId = resultMap?.get("publishedBusinessId") as? String
+            val isMerged = (resultMap?.get("isMerged") as? Boolean) == true
+
+            if (publishedBusinessId.isNullOrBlank()) {
+                return@withContext BackendResponse(
+                    success = false,
+                    message = "لم يُرجع الخادم معرف النشاط المعتمد المنشور."
+                )
+            }
+
+            // Fetch authoritative published document directly from Cloud Firestore
+            val db = FirebaseFirestore.getInstance()
+            val bizDoc = db.collection(FirebaseFirestoreSyncManager.COL_BUSINESSES)
+                .document(publishedBusinessId)
+                .get()
+                .await()
+
+            val publishedBusiness = if (bizDoc.exists()) {
+                FirebaseFirestoreSyncManager.documentToBusiness(bizDoc)
+            } else null
 
             return@withContext BackendResponse(
                 success = true,
-                data = finalBusinessToPublish,
-                message = if (matchedBusinessId != null) {
-                    "تم العثور على نشاط مطابق مسبقًا (${finalBusinessToPublish.name})، تم دمج وتحديث السجل الموحد ونشره في Firestore بنجاح 🔄"
+                data = publishedBusiness,
+                message = if (isMerged) {
+                    "تم العثور على نشاط مطابق مسبقًا (${publishedBusiness?.name})، تم دمج وتحديث السجل الموحد ونشره في Firestore بنجاح 🔄"
                 } else {
-                    "تم اعتماد النشاط ونشره بنجاح في Cloud Firestore كنشاط معتمد رسمي 🚀"
+                    "تم اعتماد النشاط ونشره بنجاح في Cloud Firestore كنشاط معتمد رسمي عبر Cloud Function 🚀"
                 }
             )
         } catch (e: Exception) {
-            Log.e("BackendApiService", "Error during approveContribution mutation: ${e.message}", e)
+            Log.e("BackendApiService", "Error invoking Cloud Function approveContribution: ${e.message}", e)
+            val isPermission = e.message?.contains("permission-denied", ignoreCase = true) == true
+            val errorMsg = if (isPermission) {
+                "فشلت العملية: يتطلب الاعتماد صلاحية مشرف معتمدة على الخادم (Admin Custom Claim)."
+            } else {
+                "فشلت عملية النشر على الخادم السحابي: ${e.localizedMessage}"
+            }
             return@withContext BackendResponse(
                 success = false,
-                message = "فشلت عملية النشر على الخادم السحابي: ${e.localizedMessage}"
+                message = errorMsg
             )
         }
     }
 
     /**
      * Authoritative Backend Contribution Rejection Mutation.
-     * Updates contribution status to REJECTED and writes audit log.
-     * Guarantees ZERO business documents are created or published.
+     * Invokes Cloud Function `rejectContribution` exclusively via Firebase Functions SDK.
+     * Guarantees ZERO business documents are created or published in /businesses.
      */
     suspend fun rejectContribution(
         authToken: String?,
@@ -330,49 +165,34 @@ class BackendApiService {
             return@withContext BackendResponse(success = false, message = "يرجى تحديد سبب الرفض بالتفصيل")
         }
 
-        val db = try {
-            FirebaseFirestore.getInstance()
-        } catch (e: Exception) {
-            null
-        }
-
-        if (db == null) {
-            return@withContext BackendResponse(success = false, message = "خدمة السحابة غير متاحة لإتمام الرفض.")
-        }
-
         try {
-            val contribRef = db.collection(FirebaseFirestoreSyncManager.COL_CONTRIBUTIONS).document(contributionId)
-            val batch = db.batch()
-
-            batch.set(contribRef, mapOf(
-                "status" to "REJECTED",
-                "moderatorNote" to reason,
-                "reviewedAt" to FieldValue.serverTimestamp(),
-                "updatedAt" to FieldValue.serverTimestamp()
-            ), SetOptions.merge())
-
-            val auditRef = db.collection(FirebaseFirestoreSyncManager.COL_AUDIT_LOGS).document()
-            batch.set(auditRef, mapOf(
-                "id" to auditRef.id,
-                "action" to "REJECT_CONTRIBUTION",
-                "adminId" to adminUserId,
-                "adminEmail" to adminEmail,
+            val functions = FirebaseFunctions.getInstance()
+            val payload = hashMapOf<String, Any?>(
                 "contributionId" to contributionId,
-                "reason" to reason,
-                "timestamp" to FieldValue.serverTimestamp()
-            ))
+                "reason" to reason.trim()
+            )
 
-            batch.commit().await()
+            functions
+                .getHttpsCallable("rejectContribution")
+                .call(payload)
+                .await()
 
             return@withContext BackendResponse(
                 success = true,
                 data = true,
-                message = "تم تسجيل رفض المساهمة على الخادم بنجاح ولم يتم إنشاء أو نشر أي نشاط تجاري."
+                message = "تم تسجيل رفض المساهمة على الخادم بنجاح عبر Cloud Function ولم يتم إنشاء أو نشر أي نشاط تجاري."
             )
         } catch (e: Exception) {
+            Log.e("BackendApiService", "Error invoking Cloud Function rejectContribution: ${e.message}", e)
+            val isPermission = e.message?.contains("permission-denied", ignoreCase = true) == true
+            val errorMsg = if (isPermission) {
+                "فشلت العملية: يتطلب الرفض صلاحية مشرف معتمدة على الخادم (Admin Custom Claim)."
+            } else {
+                "فشل تحديث حالة الرفض على الخادم: ${e.localizedMessage}"
+            }
             return@withContext BackendResponse(
                 success = false,
-                message = "فشل تحديث حالة الرفض على الخادم: ${e.localizedMessage}"
+                message = errorMsg
             )
         }
     }

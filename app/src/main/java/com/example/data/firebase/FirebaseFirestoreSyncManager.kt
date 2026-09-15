@@ -55,6 +55,7 @@ object FirebaseFirestoreSyncManager {
     private const val TAG = "FirestoreSyncManager"
     private const val PREFS_NAME = "met_ghamr_firestore_sync_prefs"
     private const val KEY_LAST_SYNC_TS = "last_firestore_sync_timestamp"
+    private const val KEY_LAST_SYNC_DOC_ID = "last_firestore_sync_doc_id"
     private const val KEY_SERVER_DATA_VERSION = "server_data_version"
 
     // Firestore Collections
@@ -96,8 +97,22 @@ object FirebaseFirestoreSyncManager {
         return getPrefs(context).getLong(KEY_LAST_SYNC_TS, 0L)
     }
 
+    fun getLastSyncCursor(context: Context): Pair<Long, String?> {
+        val prefs = getPrefs(context)
+        val ts = prefs.getLong(KEY_LAST_SYNC_TS, 0L)
+        val docId = prefs.getString(KEY_LAST_SYNC_DOC_ID, null)
+        return Pair(ts, docId)
+    }
+
     fun setLastSyncTimestamp(context: Context, timestamp: Long) {
-        getPrefs(context).edit().putLong(KEY_LAST_SYNC_TS, timestamp).apply()
+        setLastSyncCursor(context, timestamp, null)
+    }
+
+    fun setLastSyncCursor(context: Context, timestamp: Long, docId: String?) {
+        getPrefs(context).edit()
+            .putLong(KEY_LAST_SYNC_TS, timestamp)
+            .putString(KEY_LAST_SYNC_DOC_ID, docId)
+            .apply()
         _syncStatus.value = _syncStatus.value.copy(lastSyncTimestamp = timestamp)
     }
 
@@ -536,20 +551,23 @@ object FirebaseFirestoreSyncManager {
             IllegalStateException("خدمة Firestore غير متاحة على هذا الجهاز")
         )
 
-        val lastSync = if (forceFullSync) 0L else getLastSyncTimestamp(context)
+        val (lastSyncTs, lastSyncDocId) = if (forceFullSync) Pair(0L, null) else getLastSyncCursor(context)
+        if (forceFullSync) {
+            setLastSyncCursor(context, 0L, null)
+        }
         val now = System.currentTimeMillis()
 
         _syncStatus.value = _syncStatus.value.copy(
             state = SyncState.SYNCING,
             isSyncing = true,
-            message = if (lastSync == 0L) "جاري تحميل الدليل من Firestore..." else "جاري فحص تحديثات الأنشطة من السحابة..."
+            message = if (lastSyncTs == 0L) "جاري تحميل الدليل من Firestore..." else "جاري فحص تحديثات الأنشطة من السحابة..."
         )
 
         try {
             var totalProcessed = 0
             var totalUpserted = 0
             var totalDeleted = 0
-            var highestUpdatedAt = lastSync
+            var highestUpdatedAt = lastSyncTs
             var lastVisibleDoc: DocumentSnapshot? = null
             var hasMore = true
             val pageSize = 100L
@@ -558,15 +576,18 @@ object FirebaseFirestoreSyncManager {
                 var query = db.collection(COL_BUSINESSES)
                     .whereEqualTo("isPublished", true)
 
-                if (lastSync > 0L) {
-                    query = query.whereGreaterThan("updatedAt", lastSync)
+                if (lastSyncTs > 0L) {
+                    query = query.whereGreaterThanOrEqualTo("updatedAt", lastSyncTs)
                 }
 
                 query = query.orderBy("updatedAt", Query.Direction.ASCENDING)
                     .orderBy("id", Query.Direction.ASCENDING)
                     .limit(pageSize)
 
-                if (lastVisibleDoc != null) {
+                // Precise composite cursor startAfter to prevent missing equal updatedAt records
+                if (lastVisibleDoc == null && lastSyncTs > 0L && !lastSyncDocId.isNullOrBlank()) {
+                    query = query.startAfter(lastSyncTs, lastSyncDocId)
+                } else if (lastVisibleDoc != null) {
                     query = query.startAfter(lastVisibleDoc)
                 }
 
@@ -589,7 +610,7 @@ object FirebaseFirestoreSyncManager {
                     val verificationStatus = doc.getString("verificationStatus") ?: ""
                     val isActive = doc.getBoolean("isActive") ?: true
 
-                    if (isDeleted || verificationStatus == "ARCHIVED" || !isActive) {
+                    if (isDeleted || verificationStatus == "ARCHIVED" || verificationStatus == "DELETED" || !isActive) {
                         toDeleteIds.add(doc.id)
                     } else {
                         val biz = documentToBusiness(doc)
@@ -614,9 +635,11 @@ object FirebaseFirestoreSyncManager {
                 totalProcessed += snapshot.size()
                 lastVisibleDoc = snapshot.documents.lastOrNull()
 
-                // Deterministic cursor progression: only advance cursor after Room database insertion succeeds
-                if (highestUpdatedAt > lastSync) {
-                    setLastSyncTimestamp(context, highestUpdatedAt)
+                // Deterministic composite cursor progression: only advance cursor after Room database insertion succeeds
+                if (lastVisibleDoc != null) {
+                    val pageLastUpdatedAt = lastVisibleDoc.getLong("updatedAt") ?: now
+                    val pageLastId = lastVisibleDoc.getString("id") ?: lastVisibleDoc.id
+                    setLastSyncCursor(context, pageLastUpdatedAt, pageLastId)
                 }
 
                 // If returned less than page size, reached the end of the delta stream
@@ -625,19 +648,44 @@ object FirebaseFirestoreSyncManager {
                 }
             }
 
-            // Sync sources if needed
+            // Sync sources using full pagination without static limit(100) ceiling
             val updatedSources = mutableListOf<BusinessSourceEntity>()
             try {
-                val sourcesSnapshot = db.collection(COL_SOURCES).limit(100).get().await()
-                for (doc in sourcesSnapshot.documents) {
-                    val src = documentToSource(doc)
-                    if (src != null) updatedSources.add(src)
+                var hasMoreSources = true
+                var lastVisibleSourceDoc: DocumentSnapshot? = null
+                val sourcePageSize = 100L
+
+                while (hasMoreSources) {
+                    var sourceQuery = db.collection(COL_SOURCES)
+                        .orderBy("id", Query.Direction.ASCENDING)
+                        .limit(sourcePageSize)
+
+                    if (lastVisibleSourceDoc != null) {
+                        sourceQuery = sourceQuery.startAfter(lastVisibleSourceDoc)
+                    }
+
+                    val sourcesSnapshot = sourceQuery.get().await()
+                    if (sourcesSnapshot.isEmpty) {
+                        hasMoreSources = false
+                        break
+                    }
+
+                    for (doc in sourcesSnapshot.documents) {
+                        val src = documentToSource(doc)
+                        if (src != null) updatedSources.add(src)
+                    }
+
+                    lastVisibleSourceDoc = sourcesSnapshot.documents.lastOrNull()
+                    if (sourcesSnapshot.size() < sourcePageSize) {
+                        hasMoreSources = false
+                    }
                 }
+
                 if (updatedSources.isNotEmpty()) {
                     dao.insertBusinessSources(updatedSources)
                 }
             } catch (e: Exception) {
-                // Non-critical
+                Log.w(TAG, "Notice syncing business sources: ${e.message}")
             }
 
             // Also upload any local contributions that were saved while offline

@@ -935,6 +935,7 @@ class DirectoryRepository(
             payloadJson = payloadJson,
             userReason = payload.userNotes.ifBlank { null },
             status = ContributionStatus.PENDING.name,
+            syncStatus = "WAITING_FOR_UPLOAD",
             createdAt = System.currentTimeMillis()
         )
 
@@ -945,18 +946,25 @@ class DirectoryRepository(
             val uploadResult = FirebaseFirestoreSyncManager.uploadContributionToFirestore(entity)
             if (uploadResult.isSuccess) {
                 directoryDao.updateContributionSyncStatus(entity.id, "SYNCED")
+                directoryDao.insertNotification(
+                    NotificationEntity(
+                        id = "notif_" + UUID.randomUUID().toString().take(8),
+                        title = "تم تسليم طلب الإضافة للسحابة",
+                        body = "تم رفع طلبك (${payload.name}) بنجاح بكود $humanId وسيتم مراجعته بواسطة فريق المشرفين.",
+                        businessId = contributionId
+                    )
+                )
+            } else {
+                directoryDao.insertNotification(
+                    NotificationEntity(
+                        id = "notif_" + UUID.randomUUID().toString().take(8),
+                        title = "تم حفظ الطلب محلياً",
+                        body = "تم حفظ طلبك (${payload.name}) محلياً على الجهاز وسيرفع تلقائياً إلى السحابة فور توفر اتصال بالإنترنت.",
+                        businessId = contributionId
+                    )
+                )
             }
         }
-
-        // Insert automatic notification for user
-        directoryDao.insertNotification(
-            NotificationEntity(
-                id = "notif_" + UUID.randomUUID().toString().take(8),
-                title = "تم استلام طلب إضافة نشاط تجاري",
-                body = "تم تسليم طلبك (${payload.name}) بنجاح بكود $humanId وسيتم مراجعته بواسطة فريق الدليل.",
-                businessId = contributionId
-            )
-        )
 
         // Trigger real-time system notification on device
         com.example.util.NotificationHelper.showNewBusinessNotification(
@@ -1001,6 +1009,7 @@ class DirectoryRepository(
             newValue = newValue.trim(),
             userReason = reason.trim(),
             status = ContributionStatus.PENDING.name,
+            syncStatus = "WAITING_FOR_UPLOAD",
             createdAt = System.currentTimeMillis()
         )
 
@@ -1010,17 +1019,25 @@ class DirectoryRepository(
             val uploadResult = FirebaseFirestoreSyncManager.uploadContributionToFirestore(entity)
             if (uploadResult.isSuccess) {
                 directoryDao.updateContributionSyncStatus(entity.id, "SYNCED")
+                directoryDao.insertNotification(
+                    NotificationEntity(
+                        id = "notif_" + UUID.randomUUID().toString().take(8),
+                        title = "تم تسليم اقتراح التعديل للسحابة",
+                        body = "شكراً لمساهمتك في تحسين بيانات ($businessName). الطلب $humanId قيد المراجعة.",
+                        businessId = businessId
+                    )
+                )
+            } else {
+                directoryDao.insertNotification(
+                    NotificationEntity(
+                        id = "notif_" + UUID.randomUUID().toString().take(8),
+                        title = "تم حفظ الاقتراح محلياً",
+                        body = "تم حفظ اقتراحك لـ ($businessName) على الجهاز وسيرفع للسحابة عند توفر الشبكة.",
+                        businessId = businessId
+                    )
+                )
             }
         }
-
-        directoryDao.insertNotification(
-            NotificationEntity(
-                id = "notif_" + UUID.randomUUID().toString().take(8),
-                title = "تم استلام اقتراح التعديل",
-                body = "شكراً لمساهمتك في تحسين بيانات ($businessName). الطلب $humanId قيد المراجعة.",
-                businessId = businessId
-            )
-        )
 
         deleteContributionDraft(ContributionType.SUGGEST_EDIT.name, businessId)
 
@@ -1050,6 +1067,7 @@ class DirectoryRepository(
             type = reportType.name,
             userReason = reason.trim(),
             status = ContributionStatus.PENDING.name,
+            syncStatus = "WAITING_FOR_UPLOAD",
             createdAt = System.currentTimeMillis()
         )
 
@@ -1059,17 +1077,25 @@ class DirectoryRepository(
             val uploadResult = FirebaseFirestoreSyncManager.uploadContributionToFirestore(entity)
             if (uploadResult.isSuccess) {
                 directoryDao.updateContributionSyncStatus(entity.id, "SYNCED")
+                directoryDao.insertNotification(
+                    NotificationEntity(
+                        id = "notif_" + UUID.randomUUID().toString().take(8),
+                        title = "تم تسليم البلاغ للسحابة",
+                        body = "تم استلام بلاغك بشأن ($businessName) بكود $humanId وجاري التحقق منه.",
+                        businessId = businessId
+                    )
+                )
+            } else {
+                directoryDao.insertNotification(
+                    NotificationEntity(
+                        id = "notif_" + UUID.randomUUID().toString().take(8),
+                        title = "تم حفظ البلاغ محلياً",
+                        body = "تم حفظ بلاغك محلياً وسيرفع للسحابة تلقائياً فور توفر الاتصال بالإنترنت.",
+                        businessId = businessId
+                    )
+                )
             }
         }
-
-        directoryDao.insertNotification(
-            NotificationEntity(
-                id = "notif_" + UUID.randomUUID().toString().take(8),
-                title = "تم تسليم بلاغك بنجاح",
-                body = "تم استلام بلاغك بشأن ($businessName) بكود $humanId وجاري التحقق منه.",
-                businessId = businessId
-            )
-        )
 
         return Result.success(entity)
     }
