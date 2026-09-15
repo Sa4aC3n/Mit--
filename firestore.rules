@@ -7,64 +7,99 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isSuperAdmin() {
-      return isAuthenticated() && request.auth.token.email == 'm.k3shka@gmail.com';
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        request.auth.token.email == 'm.k3shka@gmail.com'
+      );
     }
 
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Businesses Collection
+    // 1. Published Businesses Collection (Authoritative Central Source of Truth)
     match /businesses/{businessId} {
-      // Anyone can read active & verified businesses (public directory)
-      allow read: if true;
+      // Public directory read is strictly permitted for published businesses
+      // Unauthenticated or regular users CANNOT read unpublished or drafted items
+      allow read: if isAdmin() || (resource.data.isPublished == true);
 
-      // Only Super Admin or authorized Admin can create/update/delete businesses directly
-      allow create, update: if isSuperAdmin() || (
-        isAuthenticated() && 
-        request.resource.data.keys().hasAll(['id', 'name', 'phone', 'categoryName', 'updatedAt']) &&
-        request.resource.data.name is string &&
-        request.resource.data.name.size() > 0
-      );
-
-      // Only Super Admin can hard-delete businesses
-      allow delete: if isSuperAdmin();
+      // Normal users CANNOT create, update, or delete published businesses under any circumstances.
+      // Only trusted server/Admin can perform writes, updates, and tombstones.
+      allow write: if isAdmin();
     }
 
-    // Reviews & Ratings Collection
-    match /reviews/{reviewId} {
-      // Publicly readable
-      allow read: if true;
+    // 2. Legacy Activities Collection (Protected during migration, no unauthorized writes)
+    match /activities/{activityId} {
+      allow read: if isAdmin() || (resource.data.isPublished == true);
+      allow write: if isAdmin();
+    }
 
-      // Authenticated users can write their own reviews (with 1-5 rating constraint)
+    // 3. User Contributions & Moderation Queue
+    match /contributions/{contribId} {
+      // Normal users can only read their own submitted contributions
+      // Admins can read all contributions for moderation
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+
+      // Normal users can ONLY create new requests with status 'PENDING' for their own account
+      // They are strictly forbidden from setting approvedAt, approvedBy, or publishedBusinessId
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'PENDING' &&
+        (!('approvedAt' in request.resource.data) || request.resource.data.approvedAt == null) &&
+        (!('approvedBy' in request.resource.data) || request.resource.data.approvedBy == null) &&
+        (!('publishedBusinessId' in request.resource.data) || request.resource.data.publishedBusinessId == null);
+
+      // Normal users CANNOT update status, approve, or delete approved requests. Only Admin can update/delete.
+      allow update, delete: if isAdmin();
+    }
+
+    // 4. Official Taxonomies & Categories (26 main categories, 103 subcategories)
+    match /categories/{catId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 5. Multi-Source Provenance & Business Sources
+    match /businessSources/{sourceId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 6. Reviews & Ratings Collection
+    match /reviews/{reviewId} {
+      // Only approved reviews are visible to the public; Admin can view all
+      allow read: if isAdmin() || (resource.data.status == 'APPROVED');
+
+      // Authenticated users can write their own reviews with 1-5 rating validation
       allow create: if isAuthenticated() &&
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.rating >= 1 &&
-        request.resource.data.rating <= 5;
+        request.resource.data.rating <= 5 &&
+        request.resource.data.comment is string &&
+        request.resource.data.comment.size() > 0;
 
-      // Users can update/delete their own review; Super Admin can moderate any review
-      allow update, delete: if isSuperAdmin() || (
-        isAuthenticated() && resource.data.userId == request.auth.uid
+      // Users can update their own comment/rating, Super Admin can moderate
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.rating >= 1 &&
+        request.resource.data.rating <= 5
       );
+
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
     }
 
-    // User Contributions & Suggestions
-    match /contributions/{contribId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated();
-      allow update, delete: if isSuperAdmin();
-    }
-
-    // Audit Logs & Security
+    // 7. Audit Logs & System Governance
     match /audit_logs/{logId} {
-      allow read, write: if isSuperAdmin();
+      allow read, write: if isAdmin();
     }
 
-    // App Configurations & Analytics
+    // 8. System Configurations & App Metadata
     match /system_config/{docId} {
       allow read: if true;
-      allow write: if isSuperAdmin();
+      allow write: if isAdmin();
     }
   }
 }

@@ -620,6 +620,143 @@ object ExcelTemplateGenerator {
                 "صيدلية د. الشناوي,صيدليات,صيدليات 24 ساعة وطوارئ,01005544332,0506908877,201005544332,ميدان المحطة,ميدان المحطة,مدينة ميت غمر,طوال الأسبوع (24 ساعة),00:00 ص - 11:59 م,خدمة 24 ساعة وتوصيل منازل,https://maps.google.com/?q=30.7170,31.2625,,"
     }
 
+    /**
+     * Generates a dedicated Microsoft Excel XML (.xls) workbook with all canonical categories,
+     * subcategories, keywords, and descriptions.
+     */
+    fun generateCategoriesCatalogExcelXml(): String {
+        val categories = InitialDataSeed.categories
+        val sb = StringBuilder()
+        sb.append("""<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Title>فهرس التصنيفات والتخصصات - دليل ميت غمر</Title>
+  <Subject>دليل التصنيفات الرئيسية والفرعية المعتمدة</Subject>
+  <Author>دليل ميت غمر</Author>
+ </DocumentProperties>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Center" ss:ReadingOrder="RightToLeft"/>
+   <Font ss:FontName="Segoe UI" x:CharSet="178" ss:Size="11" ss:Color="#0F172A"/>
+  </Style>
+  <Style ss:ID="HeaderTitle">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:ReadingOrder="RightToLeft"/>
+   <Font ss:FontName="Segoe UI" x:CharSet="178" ss:Size="15" ss:Bold="1" ss:Color="#0F172A"/>
+   <Interior ss:Color="#E2E8F0" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="HeaderTeal">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1" ss:ReadingOrder="RightToLeft"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#0D9488"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#0D9488"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" x:CharSet="178" ss:Size="11" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#0D9488" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="RowEven">
+   <Alignment ss:Vertical="Center" ss:ReadingOrder="RightToLeft"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="RowOdd">
+   <Alignment ss:Vertical="Center" ss:ReadingOrder="RightToLeft"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="CategoryHighlight">
+   <Alignment ss:Vertical="Center" ss:Horizontal="Center" ss:ReadingOrder="RightToLeft"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" x:CharSet="178" ss:Size="11" ss:Bold="1" ss:Color="#0369A1"/>
+   <Interior ss:Color="#F0F9FF" ss:Pattern="Solid"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="التصنيفات والتخصصات">
+  <Table ss:DefaultColumnWidth="140" ss:DefaultRowHeight="24">
+   <Column ss:Width="40"/>
+   <Column ss:Width="160"/>
+   <Column ss:Width="200"/>
+   <Column ss:Width="280"/>
+   <Column ss:Width="260"/>
+   <Row ss:Height="34">
+    <Cell ss:MergeAcross="4" ss:StyleID="HeaderTitle"><Data ss:Type="String">دليل ميت غمر - جدول التصنيفات الرئيسية والتخصصات الفرعية الرسمية</Data></Cell>
+   </Row>
+   <Row ss:Height="28">
+    <Cell ss:StyleID="HeaderTeal"><Data ss:Type="String">م</Data></Cell>
+    <Cell ss:StyleID="HeaderTeal"><Data ss:Type="String">التصنيف الرئيسي</Data></Cell>
+    <Cell ss:StyleID="HeaderTeal"><Data ss:Type="String">التخصص / التصنيف الفرعي</Data></Cell>
+    <Cell ss:StyleID="HeaderTeal"><Data ss:Type="String">الكلمات الدلالية ومفردات البحث</Data></Cell>
+    <Cell ss:StyleID="HeaderTeal"><Data ss:Type="String">وصف التصنيف الرئيسي</Data></Cell>
+   </Row>
+""")
+
+        var counter = 1
+        categories.forEach { cat ->
+            if (cat.subcategories.isEmpty()) {
+                val styleId = if (counter % 2 == 0) "RowEven" else "RowOdd"
+                sb.append("""
+   <Row ss:Height="24">
+    <Cell ss:StyleID="$styleId"><Data ss:Type="Number">$counter</Data></Cell>
+    <Cell ss:StyleID="CategoryHighlight"><Data ss:Type="String">${escapeXml(cat.nameAr)}</Data></Cell>
+    <Cell ss:StyleID="$styleId"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="$styleId"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="$styleId"><Data ss:Type="String">${escapeXml(cat.description)}</Data></Cell>
+   </Row>
+""")
+                counter++
+            } else {
+                cat.subcategories.forEachIndexed { idx, sub ->
+                    val styleId = if (counter % 2 == 0) "RowEven" else "RowOdd"
+                    sb.append("""
+   <Row ss:Height="24">
+    <Cell ss:StyleID="$styleId"><Data ss:Type="Number">$counter</Data></Cell>
+    <Cell ss:StyleID="CategoryHighlight"><Data ss:Type="String">${escapeXml(cat.nameAr)}</Data></Cell>
+    <Cell ss:StyleID="$styleId"><Data ss:Type="String">${escapeXml(sub.nameAr)}</Data></Cell>
+    <Cell ss:StyleID="$styleId"><Data ss:Type="String">${escapeXml(sub.keywords.joinToString("، "))}</Data></Cell>
+    <Cell ss:StyleID="$styleId"><Data ss:Type="String">${escapeXml(if (idx == 0) cat.description else "")}</Data></Cell>
+   </Row>
+""")
+                    counter++
+                }
+            }
+        }
+
+        sb.append("""
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <DisplayRightToLeft/>
+   <FreezePanes/>
+   <FrozenNoSplit/>
+   <SplitHorizontal>2</SplitHorizontal>
+   <TopRowBottomPane>2</TopRowBottomPane>
+  </WorksheetOptions>
+ </Worksheet>
+</Workbook>
+""")
+        return sb.toString()
+    }
+
     private fun escapeXml(text: String): String {
         return text
             .replace("&", "&amp;")

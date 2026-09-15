@@ -55,6 +55,12 @@ fun getCategoryPastelColors(categoryId: String): Pair<Color, Color> {
         "cat_education", "cat_schools", "cat_universities", "cat_libraries", "cat_syndicates" -> Pair(PastelLavender, PastelLavenderIcon)
         "cat_banks", "cat_government" -> Pair(Color(0xFFE0F2FE), Color(0xFF0284C7))
         "cat_charities" -> Pair(PastelWatermelon, PastelWatermelonIcon)
+        "cat_photo_studios" -> Pair(PastelLavender, PastelLavenderIcon)
+        "cat_veterinary" -> Pair(PastelMint, PastelMintIcon)
+        "cat_agriculture" -> Pair(PastelGreen, PastelGreenIcon)
+        "cat_trade_exhibitions" -> Pair(PastelPeach, PastelPeachIcon)
+        "cat_beauty_care" -> Pair(Color(0xFFFCE7F3), Color(0xFFDB2777))
+        "cat_services" -> Pair(PastelSkyBlue, PastelSkyBlueIcon)
         else -> Pair(SkyBlueContainer, SkyBlueDark)
     }
 }
@@ -1014,6 +1020,12 @@ fun resolveCategoryIcon(iconName: String, categoryId: String? = null): ImageVect
         "Groups" -> Icons.Default.Groups
         "Business" -> Icons.Default.Business
         "VolunteerActivism" -> Icons.Default.VolunteerActivism
+        "CameraAlt" -> Icons.Default.CameraAlt
+        "Pets" -> Icons.Default.Pets
+        "Park" -> Icons.Default.Park
+        "Store" -> Icons.Default.Store
+        "Face" -> Icons.Default.Face
+        "LocalLaundryService" -> Icons.Default.LocalLaundryService
         else -> when (categoryId) {
             "cat_restaurants" -> Icons.Default.Restaurant
             "cat_cafes" -> Icons.Default.Coffee
@@ -1035,6 +1047,12 @@ fun resolveCategoryIcon(iconName: String, categoryId: String? = null): ImageVect
             "cat_charities" -> Icons.Default.VolunteerActivism
             "cat_home_events" -> Icons.Default.Event
             "cat_government" -> Icons.Default.AccountBalance
+            "cat_photo_studios" -> Icons.Default.CameraAlt
+            "cat_veterinary" -> Icons.Default.Pets
+            "cat_agriculture" -> Icons.Default.Park
+            "cat_trade_exhibitions" -> Icons.Default.Store
+            "cat_beauty_care" -> Icons.Default.Face
+            "cat_services" -> Icons.Default.LocalLaundryService
             else -> Icons.Default.Category
         }
     }

@@ -82,10 +82,19 @@ class DirectoryRepository(
     val categories: StateFlow<List<CategoryItem>> = _categories.asStateFlow()
 
     private fun loadPersistedCategories(): List<CategoryItem> {
+        val schemaVersion = categoryPrefs.getInt("categories_schema_version", 0)
+        if (schemaVersion < 2) {
+            val defaults = InitialDataSeed.categories
+            categoryPrefs.edit()
+                .putInt("categories_schema_version", 2)
+                .putString("categories_json", serializeCategories(defaults))
+                .apply()
+            return defaults
+        }
         val saved = categoryPrefs.getString("categories_json", null)
         if (!saved.isNullOrBlank()) {
             val parsed = deserializeCategories(saved)
-            if (!parsed.isNullOrEmpty()) {
+            if (!parsed.isNullOrEmpty() && parsed.size >= 26) {
                 return parsed
             }
         }
@@ -195,13 +204,17 @@ class DirectoryRepository(
     }
 
     suspend fun resetCategoriesToDefault() {
-        _categories.value = InitialDataSeed.categories
-        categoryPrefs.edit().remove("categories_json").apply()
+        val defaults = InitialDataSeed.categories
+        _categories.value = defaults
+        categoryPrefs.edit()
+            .putInt("categories_schema_version", 2)
+            .putString("categories_json", serializeCategories(defaults))
+            .apply()
         logDataEngineAudit(
             actionType = "RESET_CATEGORIES",
             targetEntity = "CATEGORY",
             entityId = "ALL",
-            details = "استعادة التصنيفات الافتراضية لقاعدة البيانات"
+            details = "استعادة التصنيفات الافتراضية لقاعدة البيانات (26 تصنيفاً معتمداً)"
         )
     }
 
@@ -237,14 +250,21 @@ class DirectoryRepository(
                 )
             )
 
-            // 1. Run Authoritative Cloud Firestore Sync to fetch all activities (including 360+ cloud activities)
+            // 1. Run Authoritative Cloud Firestore Sync (incremental delta fetch; Room cache is displayed immediately)
             try {
-                FirebaseFirestoreSyncManager.performIncrementalSync(context, directoryDao, forceFullSync = true)
+                FirebaseFirestoreSyncManager.performIncrementalSync(context, directoryDao, forceFullSync = false)
             } catch (e: Exception) {
                 // Room cache remains active
             }
 
-            // 2. Attach Real-time Firestore Live Listener for instant updates
+            // 1.b One-time migration: migrate legacy 'activities' to unified 'businesses' collection
+            try {
+                FirebaseFirestoreSyncManager.migrateLegacyActivitiesToUnifiedBusinesses(context, directoryDao)
+            } catch (e: Exception) {
+                // Non-blocking
+            }
+
+            // 2. Attach Scoped Real-time Firestore Live Listener for instant published updates
             try {
                 FirebaseFirestoreSyncManager.startRealtimeFirestoreSync(directoryDao, repositoryScope)
             } catch (e: Exception) {
@@ -920,6 +940,14 @@ class DirectoryRepository(
 
         directoryDao.insertContribution(entity)
 
+        // Upload to Firestore in background (authoritative pending contributions collection)
+        repositoryScope.launch(Dispatchers.IO) {
+            val uploadResult = FirebaseFirestoreSyncManager.uploadContributionToFirestore(entity)
+            if (uploadResult.isSuccess) {
+                directoryDao.updateContributionSyncStatus(entity.id, "SYNCED")
+            }
+        }
+
         // Insert automatic notification for user
         directoryDao.insertNotification(
             NotificationEntity(
@@ -978,6 +1006,13 @@ class DirectoryRepository(
 
         directoryDao.insertContribution(entity)
 
+        repositoryScope.launch(Dispatchers.IO) {
+            val uploadResult = FirebaseFirestoreSyncManager.uploadContributionToFirestore(entity)
+            if (uploadResult.isSuccess) {
+                directoryDao.updateContributionSyncStatus(entity.id, "SYNCED")
+            }
+        }
+
         directoryDao.insertNotification(
             NotificationEntity(
                 id = "notif_" + UUID.randomUUID().toString().take(8),
@@ -1019,6 +1054,13 @@ class DirectoryRepository(
         )
 
         directoryDao.insertContribution(entity)
+
+        repositoryScope.launch(Dispatchers.IO) {
+            val uploadResult = FirebaseFirestoreSyncManager.uploadContributionToFirestore(entity)
+            if (uploadResult.isSuccess) {
+                directoryDao.updateContributionSyncStatus(entity.id, "SYNCED")
+            }
+        }
 
         directoryDao.insertNotification(
             NotificationEntity(
@@ -1163,54 +1205,40 @@ class DirectoryRepository(
         val contribution = directoryDao.getContributionById(contributionId)
             ?: return Result.failure(IllegalArgumentException("المساهمة غير موجودة"))
 
-        // 1. Authoritative Backend Mutation
+        val adminUser = currentUser.value
+        val adminId = adminUser?.id ?: "admin_super"
+        val adminEmail = adminUser?.email ?: "m.k3shka@gmail.com"
+
+        // 1. Authoritative Backend Mutation on Cloud Firestore (idempotent, deduplicated)
         val backendResp = backendApiService.approveContribution(
             authToken = getBackendToken(),
             contributionId = contributionId,
-            moderatorNote = moderatorNote
+            moderatorNote = moderatorNote,
+            adminUserId = adminId,
+            adminEmail = adminEmail,
+            preloadedContribution = contribution
         )
 
         if (!backendResp.success) {
             return Result.failure(IllegalStateException(backendResp.message ?: "فشلت عملية الاعتماد على الخادم"))
         }
 
-        // 2. Synchronize Local Room DB Cache after successful Backend mutation
-        directoryDao.updateContributionModeration(
+        val publishedBiz = backendResp.data
+
+        // 2. Synchronize Local Room DB Cache after successful authoritative Cloud mutation
+        directoryDao.updateContributionModerationDetails(
             id = contributionId,
             status = ContributionStatus.APPROVED.name,
-            note = moderatorNote
+            note = moderatorNote,
+            approvedAt = System.currentTimeMillis(),
+            approvedBy = adminId,
+            publishedBusinessId = publishedBiz?.id ?: contribution.businessId ?: ""
         )
 
-        // If ADD_BUSINESS payload -> insert approved business entity into cache
-        if (contribution.type == ContributionType.ADD_BUSINESS.name && contribution.payloadJson != null) {
-            val json = try { org.json.JSONObject(contribution.payloadJson) } catch (e: Exception) { null }
-            val newBusiness = BusinessEntity(
-                id = "biz_" + UUID.randomUUID().toString().take(8),
-                name = json?.optString("name")?.takeIf { it.isNotBlank() } ?: contribution.businessName,
-                categoryId = contribution.categoryId ?: json?.optString("categoryId") ?: "cat_other",
-                categoryName = json?.optString("categoryName")?.takeIf { it.isNotBlank() } ?: "نشاط جديد",
-                specialty = json?.optString("specialization")?.takeIf { it.isNotBlank() } ?: "نشاط تجاري معتمد",
-                description = json?.optString("description")?.takeIf { it.isNotBlank() } ?: "نشاط تجاري مضاف وموثق بواسطة فريق مراجعة دليل ميت غمر",
-                phone = json?.optString("phone")?.takeIf { it.isNotBlank() } ?: ("050" + (1000000..9999999).random()),
-                phoneSecondary = json?.optString("secondaryPhone")?.takeIf { it.isNotBlank() },
-                whatsapp = json?.optString("whatsapp")?.takeIf { it.isNotBlank() },
-                city = json?.optString("city")?.takeIf { it.isNotBlank() } ?: "مدينة ميت غمر",
-                address = json?.optString("address")?.takeIf { it.isNotBlank() } ?: "ميت غمر",
-                area = json?.optString("district")?.takeIf { it.isNotBlank() } ?: "وسط البلد",
-                facebookUrl = json?.optString("facebookUrl")?.takeIf { it.isNotBlank() },
-                websiteUrl = json?.optString("websiteUrl")?.takeIf { it.isNotBlank() },
-                latitude = if (json?.has("lat") == true && !json.isNull("lat")) json.optDouble("lat", 30.7183) else 30.7183,
-                longitude = if (json?.has("lng") == true && !json.isNull("lng")) json.optDouble("lng", 31.2568) else 31.2568,
-                workingHours = json?.optString("workingHours")?.takeIf { it.isNotBlank() } ?: "9:00 ص - 10:00 م",
-                imageUrl = (json?.optJSONArray("imageUrls")?.optString(0))?.takeIf { it.isNotBlank() } ?: json?.optString("imageUrl")?.takeIf { it.isNotBlank() },
-                ratingAverage = 5.0f,
-                ratingCount = 1,
-                isVerified = true,
-                isActive = true,
-                updatedAt = System.currentTimeMillis()
-            )
-            directoryDao.insertBusiness(newBusiness)
-            com.example.util.NotificationHelper.showNewBusinessNotification(context, newBusiness)
+        // Insert or update published business into local Room cache
+        if (publishedBiz != null) {
+            directoryDao.insertBusiness(publishedBiz)
+            com.example.util.NotificationHelper.showNewBusinessNotification(context, publishedBiz)
         }
 
         // Synchronize notification
@@ -1218,8 +1246,8 @@ class DirectoryRepository(
             NotificationEntity(
                 id = "notif_" + UUID.randomUUID().toString().take(8),
                 title = "تمت الموافقة على طلبك 🎉",
-                body = "تمت الموافقة على الطلب (${contribution.humanReadableId}) واعتماده بنجاح في دليل ميت غمر.",
-                businessId = contribution.businessId
+                body = "تمت الموافقة على الطلب (${contribution.humanReadableId}) واعتماده ونشره بنجاح في دليل ميت غمر.",
+                businessId = publishedBiz?.id ?: contribution.businessId
             )
         )
 
@@ -1227,7 +1255,7 @@ class DirectoryRepository(
             action = "APPROVE_CONTRIBUTION",
             entityType = "CONTRIBUTION",
             entityId = contributionId,
-            detailsJson = "موافقة على المساهمة ${contribution.humanReadableId}"
+            detailsJson = "موافقة على المساهمة ${contribution.humanReadableId} ونشر النشاط ${publishedBiz?.id}"
         )
 
         return Result.success(true)
@@ -1240,11 +1268,17 @@ class DirectoryRepository(
         val contribution = directoryDao.getContributionById(contributionId)
             ?: return Result.failure(IllegalArgumentException("المساهمة غير موجودة"))
 
+        val adminUser = currentUser.value
+        val adminId = adminUser?.id ?: "admin_super"
+        val adminEmail = adminUser?.email ?: "m.k3shka@gmail.com"
+
         // 1. Authoritative Backend Mutation
         val backendResp = backendApiService.rejectContribution(
             authToken = getBackendToken(),
             contributionId = contributionId,
-            reason = reason
+            reason = reason,
+            adminUserId = adminId,
+            adminEmail = adminEmail
         )
 
         if (!backendResp.success) {
@@ -1653,6 +1687,10 @@ class DirectoryRepository(
 
     fun generateImportTemplateExcel(): String {
         return com.example.util.ExcelTemplateGenerator.generateExcelWorkbookXml()
+    }
+
+    fun generateCategoriesCatalogExcel(): String {
+        return com.example.util.ExcelTemplateGenerator.generateCategoriesCatalogExcelXml()
     }
 
     // ============================================================

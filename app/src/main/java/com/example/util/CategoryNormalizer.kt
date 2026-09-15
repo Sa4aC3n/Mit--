@@ -70,68 +70,111 @@ object CategoryNormalizer {
     }
 
     private fun matchCategoryKeywords(clean: String): CategoryItem? {
+        // Strict keyword matching with priority
         return when {
+            // Photography Studios
+            clean.contains("استوديو") || clean.contains("فوتوسيشن") || clean.contains("فوتوغرافي") || (clean.contains("تصوير") && !clean.contains("اشع") && !clean.contains("مستندات")) -> {
+                categories.find { it.id == "cat_photo_studios" }
+            }
+            // Veterinary and Pets
+            clean.contains("بيطر") || clean.contains("حيوان") || clean.contains("دراي فود") || clean.contains("طيور زين") || clean.contains("اسماك زين") || clean.contains("علف دواجن") || clean.contains("اعلاف دواجن") || clean.contains("علف مواش") || clean.contains("اعلاف مواش") || clean.contains("كتاكيت") -> {
+                categories.find { it.id == "cat_veterinary" }
+            }
+            // Agriculture & Plant Nurseries
+            clean.contains("مشتل") || clean.contains("مشاتل") || clean.contains("اسمده") || clean.contains("مبيدات") || clean.contains("كيماويات زراعي") || clean.contains("نباتات زين") || clean.contains("شتلات") -> {
+                categories.find { it.id == "cat_agriculture" }
+            }
+            // Trade Exhibitions (Furniture, Car Showrooms, Bridal, Major Appliances)
+            clean.contains("معارض") || clean.contains("معرض سيار") || clean.contains("معرض اثاث") || clean.contains("موبيليات") || clean.contains("تجهيز العرائس") || clean.contains("جهاز العروس") || clean.contains("صالونات وانتريهات") -> {
+                categories.find { it.id == "cat_trade_exhibitions" }
+            }
+            // Beauty & Personal Care (Salons, Barber, Spa, Makeup)
+            // Note: SPA distinction: "سبا" or "مساج" or "عناية بالجسم" goes to beauty care, whereas "سباكة" goes to technicians.
+            clean.contains("حلاق") || clean.contains("حلاقه") || clean.contains("كوافير") || clean.contains("بيوتي سنتر") || clean.contains("ميكاب") || clean.contains("ميك اب") || clean.contains("تجميل حريمي") || clean.contains("مساج") || clean.contains("عنايه بالجسم") || clean.contains("عناية بالجسم") || (clean.contains("سبا") && !clean.contains("سباك")) -> {
+                categories.find { it.id == "cat_beauty_care" }
+            }
+            // Laundry & Cleaning Services
+            clean.contains("مغسل") || clean.contains("دراي كلين") || clean.contains("غسيل سجاد") || clean.contains("مكوجي") -> {
+                categories.find { it.id == "cat_services" }
+            }
+            // Doctors & Clinics
             clean.contains("طبيب") || clean.contains("اطباء") || clean.contains("دكتور") || clean.contains("دكتوره") || clean.contains("عياد") || clean.contains("كشف") || clean.contains("استشاري") || clean.contains("اخصائي") -> {
                 categories.find { it.id == "cat_doctors" }
             }
+            // Hospitals
             clean.contains("مستشف") || clean.contains("طوارئ") || clean.contains("اسعاف") || clean.contains("عنايه مركزه") -> {
                 categories.find { it.id == "cat_hospitals" }
             }
-            clean.contains("مركز طبي") || clean.contains("مجمع عيادات") || clean.contains("مجمع طبي") || clean.contains("مركز اسنان") || clean.contains("مركز عيون") || clean.contains("مركز جراح") || clean.contains("مركز علاج") -> {
+            // Medical Centers
+            clean.contains("مركز طبي") || clean.contains("مجمع عيادات") || clean.contains("مجمع طبي") -> {
                 categories.find { it.id == "cat_medical_centers" }
             }
-            clean.contains("صيدل") || clean.contains("دواء") || clean.contains("علاج") || clean.contains("روشتا") || clean.contains("اجزاخان") -> {
+            // Pharmacies
+            clean.contains("صيدل") || clean.contains("دواء") || clean.contains("مخزن ادوي") || clean.contains("مخازن ادوي") || clean.contains("روشتا") || clean.contains("اجزاخان") -> {
                 categories.find { it.id == "cat_pharmacies" }
             }
+            // Radiology & Labs
             clean.contains("اشع") || clean.contains("تحاليل") || clean.contains("معمل") || clean.contains("معامل") || clean.contains("رنين") || clean.contains("سونار") || clean.contains("مختبر") -> {
                 categories.find { it.id == "cat_radiology" }
             }
-            clean.contains("مطعم") || clean.contains("مطاعم") || clean.contains("مشوي") || clean.contains("اكل") || clean.contains("وجب") || clean.contains("كريب") || clean.contains("بيتزا") || clean.contains("سمك") || clean.contains("فول") || clean.contains("طعمي") || clean.contains("فطائر") || clean.contains("برجر") || clean.contains("شاورما") || clean.contains("حواوشي") || clean.contains("كباب") || clean.contains("ماكولات") || clean.contains("سندوتش") -> {
+            // Restaurants
+            clean.contains("مطعم") || clean.contains("مطاعم") || clean.contains("مشوي") || clean.contains("اكل") || clean.contains("وجب") || clean.contains("كريب") || clean.contains("بيتزا") || clean.contains("فطائر") || clean.contains("برجر") || clean.contains("شاورما") || clean.contains("كباب") || clean.contains("ماكولات") || clean.contains("سندوتش") || clean.contains("حلويات") || clean.contains("مخبز") || clean.contains("مخابز") -> {
                 categories.find { it.id == "cat_restaurants" }
             }
-            clean.contains("كافي") || clean.contains("مقه") || clean.contains("قهو") || clean.contains("عصير") || clean.contains("عصائر") || clean.contains("ايس كريم") || clean.contains("شاي") || clean.contains("بلايستيشن") || clean.contains("كوفي") -> {
+            // Cafes
+            clean.contains("كافي") || clean.contains("مقه") || clean.contains("قهو") || clean.contains("عصير") || clean.contains("عصائر") || clean.contains("شاي") || clean.contains("كوفي") -> {
                 categories.find { it.id == "cat_cafes" }
             }
-            clean.contains("مدرس") || clean.contains("مدارس") || clean.contains("تعليم") || clean.contains("حضان") || clean.contains("سنتر تعليمي") || clean.contains("دروس") || clean.contains("اكاديمي") -> {
+            // Schools
+            clean.contains("مدرس") || clean.contains("مدارس") || clean.contains("حضان") || clean.contains("روض") || clean.contains("سنتر تعليمي") || clean.contains("دروس") || clean.contains("كي جي") -> {
                 categories.find { it.id == "cat_schools" }
             }
-            clean.contains("جامع") || clean.contains("معهد") || clean.contains("كلي") || clean.contains("ازهر") || clean.contains("ثانوي عام") -> {
+            // Universities & Higher Institutes
+            clean.contains("جامع") || clean.contains("معهد عالي") || clean.contains("معاهد عليا") || clean.contains("كلي") || clean.contains("تفهنا") -> {
                 categories.find { it.id == "cat_universities" }
             }
-            clean.contains("ناد") || clean.contains("نواد") || clean.contains("جيم") || clean.contains("لياق") || clean.contains("رياض") || clean.contains("مسبح") || clean.contains("ملاعب") || clean.contains("بادل") || clean.contains("فتنس") -> {
+            // Clubs & Kids Areas
+            clean.contains("ناد") || clean.contains("نواد") || clean.contains("كيدز اريا") || clean.contains("kids area") || clean.contains("العاب اطفال") || clean.contains("جيم") || clean.contains("لياق") || clean.contains("رياض") || clean.contains("ملاعب") || clean.contains("فتنس") -> {
                 categories.find { it.id == "cat_clubs" }
             }
-            clean.contains("بنك") || clean.contains("صراف") || clean.contains("atm") || clean.contains("فلوس") || clean.contains("اهلي") || clean.contains("cib") || clean.contains("قاهر") || clean.contains("اسكندري") -> {
+            // Banks
+            clean.contains("بنك") || clean.contains("بنوك") || clean.contains("صراف الي") || clean.contains("atm") || clean.contains("اهلي") || clean.contains("cib") -> {
                 categories.find { it.id == "cat_banks" }
             }
-            clean.contains("حكوم") || clean.contains("سجل") || clean.contains("مجلس") || clean.contains("بريد") || clean.contains("تأمين") || clean.contains("شهر عقار") || clean.contains("مرور") || clean.contains("تموين") || clean.contains("كهربا") || clean.contains("مياه") || clean.contains("ضرائب") || clean.contains("محكم") || clean.contains("شرط") -> {
+            // Government Entities
+            clean.contains("حكوم") || clean.contains("سجل مدني") || clean.contains("شهر عقار") || clean.contains("مجلس المدين") || clean.contains("بريد") || clean.contains("تأمين") || clean.contains("مرور") || clean.contains("تموين") || clean.contains("مكتب صح") -> {
                 categories.find { it.id == "cat_government" }
             }
-            clean.contains("شرك") || clean.contains("مقاول") || clean.contains("شحن") || clean.contains("عقار") || clean.contains("استيراد") || clean.contains("تصدير") || clean.contains("توريدات") || clean.contains("استثمار") -> {
+            // Companies (no subcategories)
+            clean.contains("شرك") || clean.contains("شركات") || clean.contains("مقاولات") || clean.contains("شحن وتوصيل") || clean.contains("استيراد وتصدير") -> {
                 categories.find { it.id == "cat_companies" }
             }
-            clean.contains("مكتب") || clean.contains("تصوير") || clean.contains("طباع") || clean.contains("كتب") || clean.contains("ادوات مدرسي") || clean.contains("د عاي") || clean.contains("اعلان") -> {
+            // Libraries & Printing
+            clean.contains("مكتب") || clean.contains("تصوير مستندات") || clean.contains("طباع") || clean.contains("كتب") || clean.contains("ادوات مدرسي") -> {
                 categories.find { it.id == "cat_libraries" }
             }
+            // Charities
             clean.contains("خير") || clean.contains("ايتام") || clean.contains("جمعي") || clean.contains("اهلي") || clean.contains("مساعدات") || clean.contains("زكاه") || clean.contains("صدقات") || clean.contains("رسال") || clean.contains("اورمان") -> {
                 categories.find { it.id == "cat_charities" }
             }
-            clean.contains("فني") || clean.contains("سباك") || clean.contains("كهربا") || clean.contains("نجار") || clean.contains("نقاش") || clean.contains("صيان") || clean.contains("تكييف") || clean.contains("تبريد") || clean.contains("الوميتال") || clean.contains("سيراميك") || clean.contains("دش") || clean.contains("كاميرات") -> {
+            // Technicians & Maintenance (Plumbing, Electrical, AC, Carpentry, Painting, Appliances, Cars)
+            clean.contains("سباك") || clean.contains("كهربا") || clean.contains("نجار") || clean.contains("نقاش") || clean.contains("تكييف") || clean.contains("تبريد") || clean.contains("صيان") || clean.contains("ميكانيك") || clean.contains("عفش") || clean.contains("صنايع") -> {
                 categories.find { it.id == "cat_technicians" }
             }
-            clean.contains("مصنع") || clean.contains("ورش") || clean.contains("الومنيوم") || clean.contains("حداد") || clean.contains("مخرط") || clean.contains("تصنيع") || clean.contains("انتاج") || clean.contains("صناعي") -> {
+            // Factories & Workshops
+            clean.contains("مصنع") || clean.contains("ورش") || clean.contains("الومنيوم") || clean.contains("حداد") || clean.contains("كريتال") || clean.contains("مخرط") || clean.contains("مسابك") || clean.contains("سباك معادن") -> {
                 categories.find { it.id == "cat_factories" }
             }
-            clean.contains("سيار") || clean.contains("ميكانيك") || clean.contains("عفش") || clean.contains("كاوتش") || clean.contains("بطاريات") || clean.contains("غسيل سيارات") || clean.contains("سمكر") || clean.contains("دوكو") || clean.contains("قطع غيار") || clean.contains("معرض سيارات") || clean.contains("ونش") -> {
-                categories.find { it.id == "cat_automotive" }
-            }
-            clean.contains("نقاب") || clean.contains("مهندس") || clean.contains("معلم") || clean.contains("محام") || clean.contains("زراعي") || clean.contains("تجاري") -> {
+            // Syndicates
+            clean.contains("نقاب") -> {
                 categories.find { it.id == "cat_syndicates" }
             }
-            clean.contains("مناسب") || clean.contains("قاع") || clean.contains("فرح") || clean.contains("افراح") || clean.contains("فراش") || clean.contains("كوافير") || clean.contains("بيوتي سنتر") || clean.contains("فوتوسيشن") || clean.contains("دي جي") -> {
+            // Event Halls & Home Services
+            clean.contains("مناسب") || clean.contains("قاع") || clean.contains("فرح") || clean.contains("افراح") || clean.contains("فراش") -> {
                 categories.find { it.id == "cat_home_events" }
             }
-            clean.contains("محل") || clean.contains("ماركت") || clean.contains("ملابس") || clean.contains("احذي") || clean.contains("اجهز") || clean.contains("موبايل") || clean.contains("هواتف") || clean.contains("عطور") || clean.contains("ميك اب") || clean.contains("ادوات منزلي") || clean.contains("مفروشات") || clean.contains("ذهب") || clean.contains("فضه") || clean.contains("مجوهرات") || clean.contains("بصريات") || clean.contains("نظارات") || clean.contains("ساعات") || clean.contains("العاب") || clean.contains("هدايا") || clean.contains("بقاله") || clean.contains("عطاره") || clean.contains("حلواني") || clean.contains("حلويات") || clean.contains("مخبز") || clean.contains("جزاره") || clean.contains("لحوم") || clean.contains("دواجن") || clean.contains("طيور") || clean.contains("سنتر") -> {
+            // Shops
+            clean.contains("محل") || clean.contains("ماركت") || clean.contains("ملابس") || clean.contains("احذي") || clean.contains("اجهز") || clean.contains("موبايل") || clean.contains("اتيليه") || clean.contains("عطار") || clean.contains("نظارات") || clean.contains("بصريات") || clean.contains("ستائر") || clean.contains("اقمش") || clean.contains("اكسسوارات") || clean.contains("هدايا") -> {
                 categories.find { it.id == "cat_shops" }
             }
             else -> null
@@ -140,8 +183,18 @@ object CategoryNormalizer {
 
     /**
      * Resolves a raw specialty/subcategory string for a given category into a standard string.
+     * Respects user constraints:
+     * - "شركات" has no subcategories -> returns empty string "", never creates "عام".
+     * - Distinguishes "باطنة" vs "الأمراض الباطنية العامة".
+     * - Distinguishes "سباكة" vs "سبا وعناية بالجسم".
+     * - Never invents an unapproved subcategory or "${category.nameAr} عام".
      */
     fun resolveSpecialty(category: CategoryItem, rawSpecialty: String, nameHint: String = ""): String {
+        // If category has no subcategories (e.g. شركات), it must strictly remain empty!
+        if (category.id == "cat_companies" || category.subcategories.isEmpty()) {
+            return ""
+        }
+
         val clean = normalizeArabic(rawSpecialty)
         if (clean.isBlank()) {
             if (nameHint.isNotBlank()) {
@@ -151,13 +204,57 @@ object CategoryNormalizer {
                     cleanName.contains(subClean) || it.keywords.any { kw -> cleanName.contains(normalizeArabic(kw)) }
                 }?.let { return it.nameAr }
             }
-            return category.subcategories.firstOrNull()?.nameAr ?: "${category.nameAr} عام"
+            // Return first approved subcategory if present, never invent "عام"
+            return category.subcategories.firstOrNull()?.nameAr ?: ""
         }
 
-        // Direct or contains match on subcategory names
+        // Specific disambiguation rules:
+        // 1. Doctors & Clinics: "باطنة" vs "الأمراض الباطنية العامة"
+        if (category.id == "cat_doctors") {
+            if (clean.contains("عام") || clean.contains("الامراض الباطنيه العامه") || clean.contains("باطنيه عامه")) {
+                return "الأمراض الباطنية العامة"
+            }
+            if (clean == "باطنه" || clean == "باطنة" || clean == "باطني" || clean.contains("باطن")) {
+                return "باطنة"
+            }
+            if (clean == "عظام" || clean.contains("عظام")) return "عظام"
+            if (clean == "قلب" || clean.contains("قلب")) return "قلب"
+            if (clean == "اطفال" || clean == "أطفال") return "أطفال"
+            if (clean.contains("حديثي الولاد") || clean.contains("مبتسرين") || clean.contains("رضع")) return "أطفال وحديثي الولادة"
+            if (clean.contains("جراح")) return "جراحة"
+            if (clean.contains("جلد")) return "الأمراض الجلدية"
+            if (clean.contains("اسنان") || clean.contains("فم")) return "الفم والأسنان"
+            if (clean.contains("نسا") || clean.contains("توليد") || clean.contains("حمل")) return "نساء وتوليد"
+            if (clean.contains("انف") || clean.contains("اذن") || clean.contains("حنجر")) return "أنف وأذن وحنجرة"
+            if (clean.contains("مسالك") || clean.contains("كلى") || clean.contains("بروستاتا")) return "مسالك بولية"
+            if (clean.contains("صدر") || clean.contains("حساسي") || clean.contains("تنفس") || clean.contains("ربو")) return "امراض صدر وحساسية"
+            if (clean.contains("نفسي") || clean.contains("عصبي") || clean.contains("مخ")) return "الطب النفسي والعصبي"
+            if (clean.contains("عيون") || clean.contains("رمد") || clean.contains("ليزك")) return "طب العيون"
+        }
+
+        // 2. Technicians: "سباكة"
+        if (category.id == "cat_technicians") {
+            if (clean.contains("سباك") || clean.contains("سباكه") || clean.contains("سباكة")) {
+                return "سباكة"
+            }
+        }
+
+        // 3. Beauty & Personal Care: "سبا وعناية بالجسم"
+        if (category.id == "cat_beauty_care") {
+            if (clean.contains("سبا") || clean.contains("spa") || clean.contains("مساج") || clean.contains("عنايه بالجسم") || clean.contains("عناية بالجسم") || clean.contains("حمام مغربي")) {
+                return "سبا وعناية بالجسم"
+            }
+        }
+
+        // Direct exact or contains match on subcategory names
         category.subcategories.find {
             val subClean = normalizeArabic(it.nameAr)
-            subClean == clean || subClean.contains(clean) || clean.contains(subClean)
+            subClean == clean
+        }?.let { return it.nameAr }
+
+        category.subcategories.find {
+            val subClean = normalizeArabic(it.nameAr)
+            subClean.contains(clean) || clean.contains(subClean)
         }?.let { return it.nameAr }
 
         // Keyword match inside subcategories
@@ -168,35 +265,7 @@ object CategoryNormalizer {
             }
         }?.let { return it.nameAr }
 
-        // Doctor specialty specific synonyms
-        if (category.id == "cat_doctors" || category.id == "cat_medical_centers") {
-            when {
-                clean == "عظام" -> return "عظام"
-                clean == "قلب" -> return "قلب"
-                clean == "اطفال" -> return "أطفال"
-                clean.contains("مخ واعصاب") || clean.contains("مخ و اعصاب") || clean.contains("جراحه المخ") -> return "جراحة المخ والأعصاب"
-                clean.contains("قلب وصدر") || clean.contains("قلب و صدر") || clean.contains("جراحه القلب") -> return "جراحة القلب والصدر"
-                clean.contains("جراحه المسالك") || (clean.contains("جراحه") && clean.contains("مسالك")) -> return "جراحة المسالك البولية"
-                clean.contains("جراحه العظام") || (clean.contains("جراحه") && clean.contains("عظام")) -> return "جراحة العظام"
-                clean.contains("جراحه تجميل") || clean.contains("جراحه التجميل") -> return "جراحة التجميل"
-                clean.contains("جراحه عامه") || clean.contains("الجراحه العامه") -> return "الجراحة العامة"
-                clean.contains("صدر") || clean.contains("حساسي") || clean.contains("تنفس") || clean.contains("ربو") -> return "امراض صدر وحساسية"
-                clean.contains("مسالك") || clean.contains("كلى") || clean.contains("بروستاتا") || clean.contains("حصوات") -> return "مسالك بولية"
-                clean.contains("نفسي") || clean.contains("طب نفسي") || clean.contains("استشارات نفسي") -> return "الطب النفسي والعصبي"
-                clean.contains("عيون") || clean.contains("رمد") || clean.contains("ليزك") || clean.contains("مياه بيضا") -> return "طب العيون"
-                clean.contains("اسنان") || clean.contains("فم") || clean.contains("تقويم") || clean.contains("حشو") || clean.contains("زراع") -> return "الفم والأسنان"
-                clean.contains("جلد") || clean.contains("بشر") || clean.contains("ليزر") || clean.contains("شعر") -> return "الأمراض الجلدية"
-                clean.contains("باطني") || clean.contains("باطنيه عامه") || clean.contains("كبد") -> return "الأمراض الباطنية العامة"
-                clean.contains("باطن") || clean.contains("سكر") || clean.contains("ضغط") -> return "باطنة وقلب"
-                clean.contains("مفصل") || clean.contains("عمود فقري") || clean.contains("كسور") -> return "عظام ومفاصل"
-                clean.contains("رضع") || clean.contains("حديثي الولاده") || clean.contains("مبتسرين") -> return "أطفال وحديثي الولادة"
-                clean.contains("نسا") || clean.contains("توليد") || clean.contains("حمل") || clean.contains("سونار") -> return "نساء وتوليد"
-                clean.contains("انف") || clean.contains("اذن") || clean.contains("حنجر") || clean.contains("لحمي") -> return "أنف وأذن وحنجرة"
-                clean.contains("علاج طبيعي") || clean.contains("تأهيل") || clean.contains("فقرات") -> return "علاج طبيعي وتأهيل"
-            }
-        }
-
-        // Return original cleaned if no exact match found
-        return rawSpecialty.trim()
+        // If no match found among approved subcategories, fallback to the first approved subcategory or empty string
+        return category.subcategories.firstOrNull()?.nameAr ?: ""
     }
 }

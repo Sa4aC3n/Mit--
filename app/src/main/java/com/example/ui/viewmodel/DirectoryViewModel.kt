@@ -1337,6 +1337,10 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
         return repository.generateImportTemplateExcel()
     }
 
+    fun getCategoriesCatalogExcel(): String {
+        return repository.generateCategoriesCatalogExcel()
+    }
+
     fun clearLastImportSummary() {
         _lastImportSummary.value = null
     }

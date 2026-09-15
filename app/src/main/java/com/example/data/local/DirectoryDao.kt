@@ -181,6 +181,26 @@ interface DirectoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertContribution(contribution: UserContributionEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertContributions(contributions: List<UserContributionEntity>)
+
+    @Query("SELECT * FROM user_contributions WHERE syncStatus = 'PENDING_UPLOAD'")
+    suspend fun getPendingUploadContributions(): List<UserContributionEntity>
+
+    @Query("UPDATE user_contributions SET syncStatus = :syncStatus WHERE id = :id")
+    suspend fun updateContributionSyncStatus(id: String, syncStatus: String)
+
+    @Query("UPDATE user_contributions SET status = :status, moderatorNote = :note, approvedAt = :approvedAt, approvedBy = :approvedBy, publishedBusinessId = :publishedBusinessId, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateContributionModerationDetails(
+        id: String,
+        status: String,
+        note: String?,
+        approvedAt: Long?,
+        approvedBy: String?,
+        publishedBusinessId: String?,
+        updatedAt: Long = System.currentTimeMillis()
+    )
+
     @Query("UPDATE user_contributions SET status = :status, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateContributionStatus(id: String, status: String, updatedAt: Long = System.currentTimeMillis())
 

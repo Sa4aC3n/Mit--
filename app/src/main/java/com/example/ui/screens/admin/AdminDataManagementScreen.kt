@@ -580,6 +580,26 @@ fun AdminDataManagementScreen(
 
                                         Button(
                                             onClick = {
+                                                val categoriesExcel = viewModel.getCategoriesCatalogExcel()
+                                                FileExportUtils.downloadAndShareFile(
+                                                    context = context,
+                                                    fileName = "فهرس_التصنيفات_والتخصصات_ميت_غمر.xls",
+                                                    content = categoriesExcel,
+                                                    mimeType = "application/vnd.ms-excel",
+                                                    title = "فتح أو حفظ فهرس التصنيفات (Excel)"
+                                                )
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E3A8A)),
+                                            modifier = Modifier.weight(1f),
+                                            shape = RoundedCornerShape(10.dp)
+                                        ) {
+                                            Icon(Icons.Default.TableView, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("فهرس التصنيفات", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        Button(
+                                            onClick = {
                                                 excelFilePickerLauncher.launch("*/*")
                                             },
                                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF107C41)),

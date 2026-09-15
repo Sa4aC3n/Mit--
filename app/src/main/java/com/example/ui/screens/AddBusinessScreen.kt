@@ -266,8 +266,8 @@ fun AddBusinessScreen(
             name = name.trim(),
             categoryId = selectedCategory!!.id,
             categoryName = selectedCategory!!.nameAr,
-            subcategoryId = selectedSubcategory?.id ?: "",
-            specialization = specialization.trim().ifEmpty { selectedSubcategory?.nameAr ?: "" },
+            subcategoryId = if (selectedCategory!!.id == "cat_companies") "" else (selectedSubcategory?.id ?: ""),
+            specialization = if (selectedCategory!!.id == "cat_companies" || selectedCategory!!.subcategories.isEmpty()) "" else specialization.trim().ifEmpty { selectedSubcategory?.nameAr ?: "" },
             phone = phone.trim(),
             secondaryPhone = secondaryPhone.trim(),
             whatsapp = whatsapp.trim(),
@@ -622,30 +622,49 @@ fun AddBusinessScreen(
                         // 3. Subcategory / Specialization (تصنيف الفرعي / التخصص)
                         if (selectedCategory != null) {
                             val subcategories = selectedCategory!!.subcategories
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = MetGhamrNavy.copy(alpha = 0.04f)),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (subcategories.isEmpty() || selectedCategory!!.id == "cat_companies") {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = MetGhamrNavy.copy(alpha = 0.04f)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
                                     Row(
+                                        modifier = Modifier.padding(14.dp),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
+                                        Icon(Icons.Default.Info, contentDescription = null, tint = MetGhamrTeal)
                                         Text(
-                                            text = "التصنيف الفرعي / التخصص *",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp,
-                                            color = MetGhamrNavy
+                                            text = "تصنيف «${selectedCategory!!.nameAr}» يضم الأنشطة والشركات مباشرة دون أقسام فرعية.",
+                                            fontSize = 12.sp,
+                                            color = TextSecondary
                                         )
-                                        if (subcategories.isNotEmpty()) {
+                                    }
+                                }
+                            } else {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = MetGhamrNavy.copy(alpha = 0.04f)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = "التصنيف الفرعي المعتمد *",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = MetGhamrNavy
+                                            )
                                             Surface(
                                                 color = MetGhamrTeal.copy(alpha = 0.12f),
                                                 shape = RoundedCornerShape(6.dp)
                                             ) {
                                                 Text(
-                                                    text = "${subcategories.size} تخصصات فرعية",
+                                                    text = "${subcategories.size} قسماً معتمداً",
                                                     fontSize = 11.sp,
                                                     color = MetGhamrTeal,
                                                     fontWeight = FontWeight.Bold,
@@ -653,18 +672,16 @@ fun AddBusinessScreen(
                                                 )
                                             }
                                         }
-                                    }
 
-                                    // Dropdown selector for subcategory if available
-                                    if (subcategories.isNotEmpty()) {
+                                        // Dropdown selector for subcategory
                                         Box(modifier = Modifier.fillMaxWidth()) {
                                             OutlinedTextField(
-                                                value = selectedSubcategory?.nameAr ?: specialization.ifBlank { "اختر التصنيف الفرعي من القائمة" },
+                                                value = selectedSubcategory?.nameAr ?: specialization.ifBlank { "اختر القسم الفرعي المعتمد" },
                                                 onValueChange = {},
                                                 readOnly = true,
                                                 textStyle = inputTextStyle,
                                                 colors = inputColors,
-                                                label = { Text("قائمة الأقسام والتخصصات الفرعية") },
+                                                label = { Text("قائمة الأقسام الفرعية المعتمدة") },
                                                 leadingIcon = { Icon(Icons.Default.Stars, contentDescription = null, tint = MetGhamrGoldDark) },
                                                 trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MetGhamrNavy) },
                                                 modifier = Modifier.fillMaxWidth()
@@ -710,7 +727,7 @@ fun AddBusinessScreen(
                                         }
 
                                         // Quick Chips for 1-tap selection
-                                        Text("أو اختر التخصص بنقرة سريعة:", fontSize = 11.sp, color = TextMuted)
+                                        Text("أو اختر القسم الفرعي بنقرة واحدة:", fontSize = 11.sp, color = TextMuted)
                                         LazyRow(
                                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                                             modifier = Modifier.fillMaxWidth()
@@ -732,32 +749,6 @@ fun AddBusinessScreen(
                                             }
                                         }
                                     }
-
-                                    // Free-form specialization / manual input
-                                    OutlinedTextField(
-                                        value = specialization,
-                                        onValueChange = { specialization = it },
-                                        textStyle = inputTextStyle,
-                                        colors = inputColors,
-                                        label = { Text("التخصص الدقيق أو كتابة تخصص يدوي") },
-                                        placeholder = {
-                                            Text(
-                                                when (selectedCategory!!.id) {
-                                                    "cat_food", "cat_restaurants" -> "مثال: مأكولات شرقية ومشويات، وجبات سريعة، كريب وبيتزا"
-                                                    "cat_doctors", "cat_health" -> "مثال: استشاري باطنة وسكر، عيادة أطفال، علاج طبيعي"
-                                                    "cat_crafts", "cat_technicians" -> "مثال: كهرباء سيارات، سباكة وتأسيس، نجارة وديكور"
-                                                    else -> "اكتب التخصص أو التصنيف الفرعي بدقة"
-                                                }
-                                            )
-                                        },
-                                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = MetGhamrNavy) },
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .testTag("add_business_specialization_input")
-                                    )
                                 }
                             }
                         }

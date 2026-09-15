@@ -753,6 +753,47 @@ fun SmartExcelTemplateDialog(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 item {
+                                    Card(
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF86EFAC)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(Icons.Default.DownloadForOffline, contentDescription = null, tint = Color(0xFF166534), modifier = Modifier.size(22.dp))
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("تصدير دليل التصنيفات إلى ملف Excel (.xls)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF166534))
+                                            }
+                                            Text(
+                                                "قم بتنزيل ملف إكسل منسق وجاهز يحتوي على كافة التصنيفات الـ 21 والتخصصات والكلمات الدلالية.",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF1E3A8A)
+                                            )
+                                            Button(
+                                                onClick = {
+                                                    val excelContent = viewModel.getCategoriesCatalogExcel()
+                                                    FileExportUtils.downloadAndShareFile(
+                                                        context = context,
+                                                        fileName = "فهرس_التصنيفات_والتخصصات_ميت_غمر.xls",
+                                                        content = excelContent,
+                                                        mimeType = "application/vnd.ms-excel",
+                                                        title = "فتح أو حفظ فهرس التصنيفات (Excel)"
+                                                    )
+                                                },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                                                shape = RoundedCornerShape(8.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("تنزيل ملف Excel للتصنيفات والتخصصات", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                item {
                                     Surface(
                                         color = Color(0xFFF1F5F9),
                                         shape = RoundedCornerShape(10.dp)

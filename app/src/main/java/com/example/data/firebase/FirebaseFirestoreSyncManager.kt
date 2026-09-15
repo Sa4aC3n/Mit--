@@ -140,6 +140,10 @@ object FirebaseFirestoreSyncManager {
             "createdAt" to biz.createdAt,
             "lastVerifiedAt" to biz.lastVerifiedAt,
             "updatedAt" to biz.updatedAt,
+            "isPublished" to biz.isPublished,
+            "isDeleted" to biz.isDeleted,
+            "archivedAt" to biz.archivedAt,
+            "approvedContributionId" to biz.approvedContributionId,
             "serverSyncedAt" to FieldValue.serverTimestamp()
         )
     }
@@ -323,6 +327,10 @@ object FirebaseFirestoreSyncManager {
             val createdAt = findLong(System.currentTimeMillis(), "createdAt", "created_at", "تاريخ_الانشاء")
             val lastVerifiedAt = findLong(System.currentTimeMillis(), "lastVerifiedAt", "last_verified_at")
             val updatedAt = findLong(System.currentTimeMillis(), "updatedAt", "updated_at", "تاريخ_التعديل")
+            val isPublished = findBoolean(true, "isPublished", "published", "منشور")
+            val isDeleted = findBoolean(false, "isDeleted", "deleted", "محذوف")
+            val archivedAt = doc.getLong("archivedAt")
+            val approvedContributionId = findString("approvedContributionId")
 
             BusinessEntity(
                 id = id,
@@ -358,7 +366,11 @@ object FirebaseFirestoreSyncManager {
                 workingHoursSource = workingHoursSource,
                 createdAt = createdAt,
                 lastVerifiedAt = lastVerifiedAt,
-                updatedAt = updatedAt
+                updatedAt = updatedAt,
+                isPublished = isPublished,
+                isDeleted = isDeleted,
+                archivedAt = archivedAt,
+                approvedContributionId = approvedContributionId
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error deserializing document ${doc.id}: ${e.message}", e)
@@ -428,80 +440,92 @@ object FirebaseFirestoreSyncManager {
         }
     }
 
-    private var activitiesListener: ListenerRegistration? = null
-    private var businessesListener: ListenerRegistration? = null
+    private var activeBusinessesLiveListener: ListenerRegistration? = null
+    private var sessionStartTime: Long = System.currentTimeMillis()
 
     /**
-     * Attaches Realtime Listeners to both 'activities' and 'businesses' Firestore collections.
-     * When any document is added or edited in the Firebase Console, local Room cache updates immediately.
+     * Attaches a restricted, windowed Realtime Listener to 'businesses' Firestore collection.
+     * Listens ONLY to published activities updated after the session started, limited to 20 items.
+     * Does NOT listen to the entire collection to conserve quota and battery.
      */
     fun startRealtimeFirestoreSync(
         dao: DirectoryDao,
         scope: CoroutineScope
     ) {
         val db = firestore ?: return
+        if (activeBusinessesLiveListener != null) return
 
-        // 1. Listen to 'activities' collection
         try {
-            activitiesListener?.remove()
-            activitiesListener = db.collection(COL_ACTIVITIES).addSnapshotListener { snapshot, e ->
-                if (e != null || snapshot == null) return@addSnapshotListener
-                scope.launch(Dispatchers.IO) {
-                    val toUpsert = mutableListOf<BusinessEntity>()
-                    for (docChange in snapshot.documentChanges) {
-                        when (docChange.type) {
-                            DocumentChange.Type.ADDED, DocumentChange.Type.MODIFIED -> {
-                                val biz = documentToBusiness(docChange.document)
-                                if (biz != null) toUpsert.add(biz)
-                            }
-                            DocumentChange.Type.REMOVED -> {
-                                dao.deleteBusiness(docChange.document.id)
+            sessionStartTime = System.currentTimeMillis()
+            activeBusinessesLiveListener = db.collection(COL_BUSINESSES)
+                .whereEqualTo("isPublished", true)
+                .whereGreaterThan("updatedAt", sessionStartTime)
+                .limit(20)
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null || snapshot == null) return@addSnapshotListener
+                    scope.launch(Dispatchers.IO) {
+                        val toUpsert = mutableListOf<BusinessEntity>()
+                        val toDelete = mutableListOf<String>()
+
+                        for (docChange in snapshot.documentChanges) {
+                            val doc = docChange.document
+                            val isDeleted = doc.getBoolean("isDeleted") ?: false
+                            val isArchived = doc.getString("verificationStatus") == "ARCHIVED" || doc.getBoolean("isActive") == false
+
+                            when (docChange.type) {
+                                DocumentChange.Type.ADDED, DocumentChange.Type.MODIFIED -> {
+                                    if (isDeleted || isArchived) {
+                                        toDelete.add(doc.id)
+                                    } else {
+                                        val biz = documentToBusiness(doc)
+                                        if (biz != null) toUpsert.add(biz)
+                                    }
+                                }
+                                DocumentChange.Type.REMOVED -> {
+                                    toDelete.add(doc.id)
+                                }
                             }
                         }
-                    }
-                    if (toUpsert.isNotEmpty()) {
-                        dao.insertBusinesses(toUpsert)
-                        Log.d(TAG, "Realtime Firestore update from '$COL_ACTIVITIES': upserted ${toUpsert.size} items")
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Realtime listener error on '$COL_ACTIVITIES': ${e.message}")
-        }
 
-        // 2. Listen to 'businesses' collection
-        try {
-            businessesListener?.remove()
-            businessesListener = db.collection(COL_BUSINESSES).addSnapshotListener { snapshot, e ->
-                if (e != null || snapshot == null) return@addSnapshotListener
-                scope.launch(Dispatchers.IO) {
-                    val toUpsert = mutableListOf<BusinessEntity>()
-                    for (docChange in snapshot.documentChanges) {
-                        when (docChange.type) {
-                            DocumentChange.Type.ADDED, DocumentChange.Type.MODIFIED -> {
-                                val biz = documentToBusiness(docChange.document)
-                                if (biz != null) toUpsert.add(biz)
+                        if (toUpsert.isNotEmpty()) {
+                            dao.insertBusinesses(toUpsert)
+                            Log.d(TAG, "Restricted Realtime update: upserted ${toUpsert.size} items")
+                        }
+                        if (toDelete.isNotEmpty()) {
+                            for (id in toDelete) {
+                                dao.deleteBusiness(id)
                             }
-                            DocumentChange.Type.REMOVED -> {
-                                dao.deleteBusiness(docChange.document.id)
-                            }
+                            Log.d(TAG, "Restricted Realtime update: deleted/tombstoned ${toDelete.size} items")
                         }
                     }
-                    if (toUpsert.isNotEmpty()) {
-                        dao.insertBusinesses(toUpsert)
-                        Log.d(TAG, "Realtime Firestore update from '$COL_BUSINESSES': upserted ${toUpsert.size} items")
-                    }
                 }
-            }
         } catch (e: Exception) {
-            Log.w(TAG, "Realtime listener error on '$COL_BUSINESSES': ${e.message}")
+            Log.w(TAG, "Restricted realtime listener notice: ${e.message}")
         }
     }
 
     /**
-     * Performs Synchronization between Firestore and local Room cache.
-     * Checks both 'activities' (user's 360+ activities) and 'businesses' collections.
-     * Runs on Dispatchers.IO and writes directly to Room cache without blocking UI.
+     * Detaches the realtime listener to avoid memory/read leaks when backgrounded.
+     */
+    fun stopRealtimeFirestoreSync() {
+        try {
+            activeBusinessesLiveListener?.remove()
+            activeBusinessesLiveListener = null
+        } catch (e: Exception) {
+            // Safe cleanup
+        }
+    }
+
+    /**
+     * Performs Authoritative Incremental Synchronization between Cloud Firestore ('businesses')
+     * and the local Room database cache.
+     *
+     * Invariants:
+     * 1. Room is the immediate UI source of truth; sync runs non-blocking on Dispatchers.IO.
+     * 2. When lastSyncTimestamp == 0, paginates published items in safe batches.
+     * 3. When lastSyncTimestamp > 0, queries ONLY delta changes where updatedAt > lastSyncTimestamp.
+     * 4. Progresses the sync cursor in SharedPreferences ONLY after Room transaction/insert commits.
+     * 5. Handles tombstones (isDeleted == true / ARCHIVED) by deleting local Room records.
      */
     suspend fun performIncrementalSync(
         context: Context,
@@ -512,109 +536,130 @@ object FirebaseFirestoreSyncManager {
             IllegalStateException("خدمة Firestore غير متاحة على هذا الجهاز")
         )
 
+        val lastSync = if (forceFullSync) 0L else getLastSyncTimestamp(context)
+        val now = System.currentTimeMillis()
+
         _syncStatus.value = _syncStatus.value.copy(
             state = SyncState.SYNCING,
             isSyncing = true,
-            message = "جاري الاتصال بـ Firestore وجلب الأنشطة من السحابة..."
+            message = if (lastSync == 0L) "جاري تحميل الدليل من Firestore..." else "جاري فحص تحديثات الأنشطة من السحابة..."
         )
 
-        val now = System.currentTimeMillis()
-
         try {
-            val updatedBusinesses = mutableListOf<BusinessEntity>()
-            val archivedIds = mutableListOf<String>()
+            var totalProcessed = 0
+            var totalUpserted = 0
+            var totalDeleted = 0
+            var highestUpdatedAt = lastSync
+            var lastVisibleDoc: DocumentSnapshot? = null
+            var hasMore = true
+            val pageSize = 100L
 
-            // 1. PRIMARY PASS: Query 'activities' collection (User's 360+ uploaded activities)
-            try {
-                Log.d(TAG, "Querying Firestore collection '$COL_ACTIVITIES'...")
-                val activitiesSnapshot = db.collection(COL_ACTIVITIES).get().await()
-                Log.d(TAG, "Fetched ${activitiesSnapshot.size()} raw documents from '$COL_ACTIVITIES'")
+            while (hasMore) {
+                var query = db.collection(COL_BUSINESSES)
+                    .whereEqualTo("isPublished", true)
 
-                for (doc in activitiesSnapshot.documents) {
-                    val biz = documentToBusiness(doc)
-                    if (biz != null) {
-                        if (biz.isActive) {
-                            updatedBusinesses.add(biz)
-                        } else {
-                            archivedIds.add(biz.id)
+                if (lastSync > 0L) {
+                    query = query.whereGreaterThan("updatedAt", lastSync)
+                }
+
+                query = query.orderBy("updatedAt", Query.Direction.ASCENDING)
+                    .orderBy("id", Query.Direction.ASCENDING)
+                    .limit(pageSize)
+
+                if (lastVisibleDoc != null) {
+                    query = query.startAfter(lastVisibleDoc)
+                }
+
+                val snapshot = query.get().await()
+                if (snapshot.isEmpty) {
+                    hasMore = false
+                    break
+                }
+
+                val toUpsert = mutableListOf<BusinessEntity>()
+                val toDeleteIds = mutableListOf<String>()
+
+                for (doc in snapshot.documents) {
+                    val docUpdatedAt = doc.getLong("updatedAt") ?: now
+                    if (docUpdatedAt > highestUpdatedAt) {
+                        highestUpdatedAt = docUpdatedAt
+                    }
+
+                    val isDeleted = doc.getBoolean("isDeleted") ?: false
+                    val verificationStatus = doc.getString("verificationStatus") ?: ""
+                    val isActive = doc.getBoolean("isActive") ?: true
+
+                    if (isDeleted || verificationStatus == "ARCHIVED" || !isActive) {
+                        toDeleteIds.add(doc.id)
+                    } else {
+                        val biz = documentToBusiness(doc)
+                        if (biz != null) {
+                            toUpsert.add(biz)
                         }
                     }
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Querying '$COL_ACTIVITIES' notice: ${e.message}")
-            }
 
-            // 2. SECONDARY PASS: Query 'businesses' collection
-            try {
-                Log.d(TAG, "Querying Firestore collection '$COL_BUSINESSES'...")
-                val businessesSnapshot = db.collection(COL_BUSINESSES).get().await()
-                Log.d(TAG, "Fetched ${businessesSnapshot.size()} raw documents from '$COL_BUSINESSES'")
-
-                for (doc in businessesSnapshot.documents) {
-                    val biz = documentToBusiness(doc)
-                    if (biz != null) {
-                        val existingIndex = updatedBusinesses.indexOfFirst { it.id == biz.id }
-                        if (existingIndex >= 0) {
-                            if (biz.updatedAt >= updatedBusinesses[existingIndex].updatedAt) {
-                                updatedBusinesses[existingIndex] = biz
-                            }
-                        } else {
-                            if (biz.isActive) {
-                                updatedBusinesses.add(biz)
-                            } else {
-                                archivedIds.add(biz.id)
-                            }
-                        }
-                    }
+                // Save page to Room
+                if (toUpsert.isNotEmpty()) {
+                    dao.insertBusinesses(toUpsert)
+                    totalUpserted += toUpsert.size
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Querying '$COL_BUSINESSES' notice: ${e.message}")
+                if (toDeleteIds.isNotEmpty()) {
+                    for (delId in toDeleteIds) {
+                        dao.deleteBusiness(delId)
+                    }
+                    totalDeleted += toDeleteIds.size
+                }
+
+                totalProcessed += snapshot.size()
+                lastVisibleDoc = snapshot.documents.lastOrNull()
+
+                // Deterministic cursor progression: only advance cursor after Room database insertion succeeds
+                if (highestUpdatedAt > lastSync) {
+                    setLastSyncTimestamp(context, highestUpdatedAt)
+                }
+
+                // If returned less than page size, reached the end of the delta stream
+                if (snapshot.size() < pageSize) {
+                    hasMore = false
+                }
             }
 
-            // 3. Check for sources updates
+            // Sync sources if needed
             val updatedSources = mutableListOf<BusinessSourceEntity>()
             try {
-                val sourcesSnapshot = db.collection(COL_SOURCES).limit(200).get().await()
+                val sourcesSnapshot = db.collection(COL_SOURCES).limit(100).get().await()
                 for (doc in sourcesSnapshot.documents) {
                     val src = documentToSource(doc)
-                    if (src != null) {
-                        updatedSources.add(src)
-                    }
+                    if (src != null) updatedSources.add(src)
+                }
+                if (updatedSources.isNotEmpty()) {
+                    dao.insertBusinessSources(updatedSources)
                 }
             } catch (e: Exception) {
                 // Non-critical
             }
 
-            // 4. Save into local Room Cache
-            if (updatedBusinesses.isNotEmpty()) {
-                dao.insertBusinesses(updatedBusinesses)
-                Log.d(TAG, "Successfully saved ${updatedBusinesses.size} activities to Room database")
-            }
-            if (archivedIds.isNotEmpty()) {
-                for (archivedId in archivedIds) {
-                    dao.deleteBusiness(archivedId)
-                }
-            }
-            if (updatedSources.isNotEmpty()) {
-                dao.insertBusinessSources(updatedSources)
+            // Also upload any local contributions that were saved while offline
+            syncPendingContributions(dao)
+
+            val msg = when {
+                totalUpserted > 0 || totalDeleted > 0 -> "تمت المزامنة بنجاح: تحديث $totalUpserted نشاط وحذف $totalDeleted نشاط ☁️✅"
+                else -> "دليل الأنشطة محدث ومتطابق مع السحابة ✅"
             }
 
-            // Save sync timestamp
-            setLastSyncTimestamp(context, now)
-
-            val totalSynced = updatedBusinesses.size
             _syncStatus.value = _syncStatus.value.copy(
                 state = SyncState.SUCCESS,
                 isSyncing = false,
                 isConnected = true,
-                lastSyncTimestamp = now,
-                syncedBusinessesCount = totalSynced,
+                lastSyncTimestamp = highestUpdatedAt,
+                syncedBusinessesCount = totalUpserted,
                 syncedSourcesCount = updatedSources.size,
-                message = if (totalSynced > 0) "تم جلب وتحديث $totalSynced نشاط من Firestore بنجاح ☁️✅" else "تم الاتصال بالسحابة - البيانات متطابقة"
+                message = msg
             )
 
-            Log.d(TAG, "Sync finished successfully. Total activities synced: $totalSynced")
-            Result.success(totalSynced)
+            Log.d(TAG, "Sync finished: Processed $totalProcessed, Upserted $totalUpserted, Deleted $totalDeleted")
+            Result.success(totalProcessed)
         } catch (e: Exception) {
             val isPermissionDenied = (e is FirebaseFirestoreException && e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) ||
                     (e.message?.contains("PERMISSION_DENIED", ignoreCase = true) == true)
@@ -641,7 +686,208 @@ object FirebaseFirestoreSyncManager {
     }
 
     /**
-     * Uploads or updates a single Business in Firestore (both 'activities' and 'businesses' collections).
+     * One-time authoritative migration: Migrates legacy 'activities' records into unified 'businesses'.
+     * Uses Entity Resolution and Arabic Deduplication to prevent duplicates and preserve all data, reviews, and sources.
+     */
+    suspend fun migrateLegacyActivitiesToUnifiedBusinesses(
+        context: Context,
+        dao: DirectoryDao
+    ): Result<Int> = withContext(Dispatchers.IO) {
+        val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firestore غير متاح"))
+        val prefs = getPrefs(context)
+        if (prefs.getBoolean("legacy_activities_migrated", false)) {
+            return@withContext Result.success(0)
+        }
+
+        try {
+            Log.d(TAG, "Starting migration from legacy '$COL_ACTIVITIES' to '$COL_BUSINESSES'...")
+            val snapshot = db.collection(COL_ACTIVITIES).limit(500).get().await()
+            if (snapshot.isEmpty) {
+                prefs.edit().putBoolean("legacy_activities_migrated", true).apply()
+                return@withContext Result.success(0)
+            }
+
+            var migratedCount = 0
+            val existingMasterBusinesses = dao.getAllActiveBusinessesDirect()
+
+            for (doc in snapshot.documents) {
+                val biz = documentToBusiness(doc) ?: continue
+
+                // Check candidate match in local room cache
+                val candidate = CandidateBusiness(
+                    id = doc.id,
+                    businessName = biz.name,
+                    categoryId = biz.categoryId,
+                    categoryName = biz.categoryName,
+                    normalizedPhone = com.example.util.ArabicNormalizer.normalizePhone(biz.phone),
+                    address = biz.address,
+                    website = biz.websiteUrl,
+                    facebookPage = biz.facebookUrl
+                )
+                val match = com.example.data.engine.EntityResolutionAndDeduplicationEngine.evaluateCandidate(candidate, existingMasterBusinesses)
+
+                val targetId = match.matchedBusinessId ?: biz.id
+                val unifiedBiz = biz.copy(
+                    id = targetId,
+                    isPublished = true,
+                    isDeleted = false,
+                    isActive = true,
+                    updatedAt = System.currentTimeMillis()
+                )
+
+                // Write unified record to COL_BUSINESSES
+                db.collection(COL_BUSINESSES).document(targetId).set(
+                    businessToFirestoreMap(unifiedBiz),
+                    SetOptions.merge()
+                ).await()
+
+                migratedCount++
+            }
+
+            prefs.edit().putBoolean("legacy_activities_migrated", true).apply()
+            Log.d(TAG, "Successfully migrated $migratedCount legacy activities to '$COL_BUSINESSES'")
+            Result.success(migratedCount)
+        } catch (e: Exception) {
+            Log.w(TAG, "Migration notice: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Uploads a User Contribution directly to Firestore 'contributions' collection with status 'PENDING'.
+     * Returns true if cloud write succeeded.
+     */
+    suspend fun uploadContributionToFirestore(
+        contribution: UserContributionEntity
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firestore غير متاح"))
+
+        try {
+            val docRef = db.collection(COL_CONTRIBUTIONS).document(contribution.id)
+            val data = mapOf<String, Any?>(
+                "id" to contribution.id,
+                "humanReadableId" to contribution.humanReadableId,
+                "userId" to contribution.userId,
+                "userName" to contribution.userName,
+                "userEmail" to contribution.userEmail,
+                "businessId" to contribution.businessId,
+                "businessName" to contribution.businessName,
+                "type" to contribution.type,
+                "categoryId" to contribution.categoryId,
+                "fieldName" to contribution.fieldName,
+                "oldValue" to contribution.oldValue,
+                "newValue" to contribution.newValue,
+                "payloadJson" to contribution.payloadJson,
+                "userReason" to contribution.userReason,
+                "status" to "PENDING", // strictly PENDING on client creation
+                "moderatorNote" to contribution.moderatorNote,
+                "submissionSource" to contribution.submissionSource,
+                "createdAt" to FieldValue.serverTimestamp(),
+                "updatedAt" to FieldValue.serverTimestamp(),
+                "approvedAt" to null,
+                "approvedBy" to null,
+                "publishedBusinessId" to null
+            )
+            docRef.set(data).await()
+            Log.d(TAG, "Successfully uploaded pending contribution ${contribution.id} to Firestore")
+            Result.success(true)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed uploading contribution to Firestore: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Uploads any pending offline contributions stored in Room to Firestore.
+     */
+    suspend fun syncPendingContributions(dao: DirectoryDao) = withContext(Dispatchers.IO) {
+        try {
+            val pendingList = dao.getPendingUploadContributions()
+            for (pending in pendingList) {
+                val uploadRes = uploadContributionToFirestore(pending)
+                if (uploadRes.isSuccess) {
+                    dao.updateContributionSyncStatus(pending.id, "SYNCED")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Notice syncing pending contributions: ${e.message}")
+        }
+    }
+
+    /**
+     * Fetches a user's own contributions from Firestore.
+     */
+    suspend fun fetchUserContributionsFromFirestore(
+        userId: String
+    ): Result<List<UserContributionEntity>> = withContext(Dispatchers.IO) {
+        val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firestore غير متاح"))
+        try {
+            val snapshot = db.collection(COL_CONTRIBUTIONS)
+                .whereEqualTo("userId", userId)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .get().await()
+
+            val list = snapshot.documents.mapNotNull { doc ->
+                val id = doc.getString("id") ?: doc.id
+                val humanReadableId = doc.getString("humanReadableId") ?: "#MG-${id.takeLast(4)}"
+                val uid = doc.getString("userId") ?: userId
+                val name = doc.getString("userName") ?: "مستخدم"
+                val email = doc.getString("userEmail") ?: ""
+                val bizId = doc.getString("businessId")
+                val bizName = doc.getString("businessName") ?: "نشاط مقترح"
+                val type = doc.getString("type") ?: "ADD_BUSINESS"
+                val catId = doc.getString("categoryId")
+                val fieldName = doc.getString("fieldName")
+                val oldValue = doc.getString("oldValue")
+                val newValue = doc.getString("newValue")
+                val payloadJson = doc.getString("payloadJson")
+                val userReason = doc.getString("userReason")
+                val status = doc.getString("status") ?: "PENDING"
+                val note = doc.getString("moderatorNote")
+                val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
+                val updatedAt = doc.getLong("updatedAt") ?: System.currentTimeMillis()
+                val reviewedAt = doc.getLong("reviewedAt")
+                val approvedAt = doc.getLong("approvedAt")
+                val approvedBy = doc.getString("approvedBy")
+                val publishedBizId = doc.getString("publishedBusinessId")
+                val submissionSource = doc.getString("submissionSource") ?: "ANDROID_APP"
+
+                UserContributionEntity(
+                    id = id,
+                    humanReadableId = humanReadableId,
+                    userId = uid,
+                    userName = name,
+                    userEmail = email,
+                    businessId = bizId,
+                    businessName = bizName,
+                    type = type,
+                    categoryId = catId,
+                    fieldName = fieldName,
+                    oldValue = oldValue,
+                    newValue = newValue,
+                    payloadJson = payloadJson,
+                    userReason = userReason,
+                    status = status,
+                    moderatorNote = note,
+                    createdAt = createdAt,
+                    updatedAt = updatedAt,
+                    reviewedAt = reviewedAt,
+                    approvedAt = approvedAt,
+                    approvedBy = approvedBy,
+                    publishedBusinessId = publishedBizId,
+                    submissionSource = submissionSource,
+                    syncStatus = "SYNCED"
+                )
+            }
+            Result.success(list)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error fetching user contributions: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Uploads or updates a single Business in Firestore ('businesses' collection).
      */
     suspend fun uploadBusinessToFirestore(
         business: BusinessEntity,
@@ -655,10 +901,7 @@ object FirebaseFirestoreSyncManager {
             val batch = db.batch()
             val bizData = businessToFirestoreMap(business)
 
-            // Write to both activities and businesses for complete consistency
-            val actRef = db.collection(COL_ACTIVITIES).document(business.id)
             val bizRef = db.collection(COL_BUSINESSES).document(business.id)
-            batch.set(actRef, bizData, SetOptions.merge())
             batch.set(bizRef, bizData, SetOptions.merge())
 
             for (source in sources) {
@@ -737,10 +980,8 @@ object FirebaseFirestoreSyncManager {
             businesses.chunked(chunkSize).forEach { chunk ->
                 val batch = db.batch()
                 for (biz in chunk) {
-                    val actRef = db.collection(COL_ACTIVITIES).document(biz.id)
                     val bizRef = db.collection(COL_BUSINESSES).document(biz.id)
                     val data = businessToFirestoreMap(biz)
-                    batch.set(actRef, data, SetOptions.merge())
                     batch.set(bizRef, data, SetOptions.merge())
                 }
                 batch.commit().await()
@@ -756,7 +997,8 @@ object FirebaseFirestoreSyncManager {
     }
 
     /**
-     * Soft-deletes or archives a business in Firestore so all user devices receive the deletion.
+     * Soft-deletes or archives a business in Firestore using a tombstone (isDeleted = true, isPublished = true)
+     * so that all user devices receive the deletion via incremental sync and remove it from Room.
      */
     suspend fun deleteOrArchiveBusinessInFirestore(
         businessId: String,
@@ -767,19 +1009,26 @@ object FirebaseFirestoreSyncManager {
         )
 
         try {
-            val actRef = db.collection(COL_ACTIVITIES).document(businessId)
             val bizRef = db.collection(COL_BUSINESSES).document(businessId)
+            val now = System.currentTimeMillis()
             if (archiveOnly) {
                 val updateData = mapOf(
+                    "isDeleted" to true,
                     "isActive" to false,
                     "verificationStatus" to "ARCHIVED",
-                    "updatedAt" to System.currentTimeMillis()
+                    "archivedAt" to now,
+                    "isPublished" to true,
+                    "updatedAt" to now
                 )
-                actRef.update(updateData).await()
                 bizRef.update(updateData).await()
             } else {
-                actRef.delete().await()
-                bizRef.delete().await()
+                // Hard delete with tombstone record
+                val updateData = mapOf(
+                    "isDeleted" to true,
+                    "isPublished" to true,
+                    "updatedAt" to now
+                )
+                bizRef.update(updateData).await()
             }
             Result.success(true)
         } catch (e: Exception) {

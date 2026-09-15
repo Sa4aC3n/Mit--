@@ -39,7 +39,11 @@ data class BusinessEntity(
     val workingHoursSource: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val lastVerifiedAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val isPublished: Boolean = true,
+    val isDeleted: Boolean = false,
+    val archivedAt: Long? = null,
+    val approvedContributionId: String? = null
 )
 
 @Entity(tableName = "reviews")
@@ -248,7 +252,12 @@ data class UserContributionEntity(
     val moderatorNote: String? = null,         // Feedback from review team
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
-    val reviewedAt: Long? = null
+    val reviewedAt: Long? = null,
+    val approvedAt: Long? = null,
+    val approvedBy: String? = null,
+    val publishedBusinessId: String? = null,
+    val submissionSource: String = "ANDROID_APP",
+    val syncStatus: String = "SYNCED"          // "SYNCED", "PENDING_UPLOAD"
 )
 
 @Entity(tableName = "contribution_drafts")

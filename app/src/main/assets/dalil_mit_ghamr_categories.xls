@@ -1,0 +1,842 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Title>التصنيفات الرئيسية والفرعية - دليل ميت غمر</Title>
+  <Subject>فهرس التصنيفات والتخصصات الفرعية الرسمية</Subject>
+  <Author>دليل ميت غمر الذكي</Author>
+  <Company>Ajilika Technologies</Company>
+ </DocumentProperties>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Center" ss:ReadingOrder="RightToLeft"/>
+   <Font ss:FontName="Segoe UI" x:CharSet="178" ss:Size="11" ss:Color="#1E293B"/>
+  </Style>
+  <Style ss:ID="HeaderTitle">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:ReadingOrder="RightToLeft"/>
+   <Font ss:FontName="Segoe UI" x:CharSet="178" ss:Size="16" ss:Bold="1" ss:Color="#0F172A"/>
+   <Interior ss:Color="#E2E8F0" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="TableHeader">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1" ss:ReadingOrder="RightToLeft"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#0F172A"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#0F172A"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" x:CharSet="178" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Interior ss:Color="#0F172A" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="TableHeaderGold">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1" ss:ReadingOrder="RightToLeft"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#B8860B"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#B8860B"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" x:CharSet="178" ss:Size="11" ss:Bold="1" ss:Color="#0F172A"/>
+   <Interior ss:Color="#D4AF37" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="RowEven">
+   <Alignment ss:Vertical="Center" ss:ReadingOrder="RightToLeft"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="RowOdd">
+   <Alignment ss:Vertical="Center" ss:ReadingOrder="RightToLeft"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="CategoryCell">
+   <Alignment ss:Vertical="Center" ss:Horizontal="Center" ss:ReadingOrder="RightToLeft"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" x:CharSet="178" ss:Size="11" ss:Bold="1" ss:Color="#0369A1"/>
+   <Interior ss:Color="#F0F9FF" ss:Pattern="Solid"/>
+  </Style>
+ </Styles>
+
+ <Worksheet ss:Name="التصنيفات الشاملة">
+  <Table ss:DefaultColumnWidth="60" ss:DefaultRowHeight="24">
+   <Column ss:Width="40"/>
+   <Column ss:Width="160"/>
+   <Column ss:Width="200"/>
+   <Column ss:Width="260"/>
+   <Column ss:Width="280"/>
+   <Row ss:Height="36">
+    <Cell ss:MergeAcross="4" ss:StyleID="HeaderTitle"><Data ss:Type="String">دليل ميت غمر - جدول التصنيفات الرئيسية والتخصصات الفرعية الرسمية</Data></Cell>
+   </Row>
+   <Row ss:Height="28">
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">م</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">التصنيف الرئيسي</Data></Cell>
+    <Cell ss:StyleID="TableHeaderGold"><Data ss:Type="String">التخصص / التصنيف الفرعي</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">الكلمات الدلالية ومفردات البحث</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">وصف التصنيف الرئيسي</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">1</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مطاعم</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مأكولات شرقية ومشويات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">كباب، كفتة، لحوم</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مشويات، كريب، وجبات سريعة، وأسماك طازجة</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">2</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مطاعم</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">وجبات سريعة وكريب</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">برجر، كريب، سندوتشات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مطاعم</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مأكولات بحرية وأسماك</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">سمك، جمبري، طواجن</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">4</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مطاعم</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">بيتزا وفطائر</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">بيتزا، فطير، إيطالي</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">5</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مطاعم</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">حلويات شرقية وغربية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">بسبوسة، كيك، آيس كريم</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">6</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">عظام ومفاصل</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">كسور، مفاصل، عمود فقري، غضروف، خشونة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">أطباء واستشاريين لكافة التخصصات الطبية</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">7</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">باطنة وقلب</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">ضغط، سكر، قلب، أوعية دموية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">8</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">أطفال وحديثي الولادة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">أطفال، حديثي الولادة، تطعيمات، نمو، مبتسرين</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">9</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">نساء وتوليد</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">نساء، توليد، حمل، ولادة، سونار، عقم</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">10</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">الفم والأسنان</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">أسنان، فم، تقويم، حشو، زراعة، تبييض</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">11</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">الأمراض الجلدية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">جلدية، أمراض جلدية، بشرة، ليزر، شعر، حساسية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">12</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">جراحة التجميل</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">تجميل، جراحة تجميل، نحت، شفط، شد، ليزر</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">13</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">أنف وأذن وحنجرة</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">أنف، أذن، حنجرة، جيوب أنفية، لحمية، سمعيات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">14</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">الأمراض الباطنية العامة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">باطنة عامة، أمراض باطنية، كبد، جهاز هضمي، مناعة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">15</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">عظام</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">عظام، كسور، جبس، مفصل</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">16</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">امراض صدر وحساسية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">صدر، حساسية، ربو، تنفس، رئة، كحة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">17</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مسالك بولية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مسالك، كلى، حصوات، بروستاتا، مثانة</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">18</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">قلب</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">قلب، أوعية دموية، قسطرة، رسم قلب، إيكو</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">19</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">الطب النفسي والعصبي</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">نفسي، عصبي، مخ وأعصاب، توتر، اكتئاب، علاج نفسي</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">20</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">أطفال</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">أطفال، تغذية أطفال، كشف أطفال</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">21</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">الجراحة العامة</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">جراحة عامة، مناظير، فتق، مرارة، استئصال</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">22</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">طب العيون</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">عيون، رمد، ليزك، نظارات، مياه بيضاء، شبكية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">23</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">جراحة العظام</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">جراحة عظام، مناظير مفاصل، تغيير مفاصل، رباط صليبي</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">24</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">جراحة المخ والأعصاب</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">جراحة مخ وأعصاب، عمود فقري، انزلاق غضروفي، أعصاب</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">25</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">جراحة القلب والصدر</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">جراحة قلب، جراحة صدر، قلب مفتوح، شرايين</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">26</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">جراحة المسالك البولية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">جراحة مسالك، مناظير كلى، تفتيت حصوات، ذكورة وعقم</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">27</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مراكز طبية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مجمعات عيادات تخصصية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مجمع عيادات، استشاريين، تخصصات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مراكز طبية متخصصة، مجمعات عيادات، ومراكز جراحة اليوم الواحد</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">28</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مراكز طبية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">مراكز عيون وجراحة ليزك</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">عيون، نظارات، ليزك، مياه بيضاء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">29</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مراكز طبية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مراكز علاج طبيعي وتأهيل</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">علاج طبيعي، تأهيل، فقرات، إصابات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">30</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">صيدليات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">صيدليات 24 ساعة وطوارئ</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">طوارئ، ليلية، دواء، توصيل</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">صيدليات تعمل على مدار 24 ساعة وخدمة توصيل الأدوية</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">31</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">صيدليات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مستلزمات أطفال وألبان</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">لبن أطفال، حفاضات، رعاية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">32</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">صيدليات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">مستحضرات تجميل وعناية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">بشرة، واقي شمس، ميك أب</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">33</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مصالح حكومية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مجلس المدينة والوحدات المحلية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مجلس المدينة، وحدة محلية، تنظيم، تراخيص</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مجلس المدينة، السجل المدني، الشهر العقاري، البريد، ومكاتب الصحة والتموين</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">34</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مصالح حكومية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">سجل مدني وشهر عقاري</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">سجل مدني، بطاقات، شهر عقاري، توثيق</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">35</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مصالح حكومية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مكاتب البريد والتأمينات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">بريد، معاشات، تأمينات اجتماعية، حوالات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">36</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مصالح حكومية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">مكاتب التموين والمرور والصحة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">تموين، مرور، رخص، صحة، مكتب صحة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">37</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">بنوك</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">فروع البنوك الرئيسية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">البنك الأهلي، بنك مصر، بنك القاهرة، CIB، البنك الزراعي</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">البنوك الوطنية والاستثمارية، ماكينات ATM، وشركات الصرافة</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">38</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">بنوك</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">ماكينات صراف آلي ATM</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">ATM، صراف آلي، سحب وإيداع</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">39</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">بنوك</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">شركات صرافة وتحويل أموال</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">صرافة، تحويل أموال، دولار، ويسترن يونيون</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">40</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">جامعات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">جامعة الأزهر تفهنا الأشراف</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">الأزهر، شريعة وقانون، تربية، تجارة، تفهنا</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">جامعة الأزهر فرع تفهنا الأشراف، المعاهد العليا والكليات التخصصية</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">41</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">جامعات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">معاهد عليا وكليات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">معهد عالي، هندسة، تكنولوجيا، دراسات عليا</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">42</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مدارس</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">مدارس رسمية لغات ورسمية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">لغات، تجريبي، ابتدائي، إعدادي، ثانوي</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">مدارس رسمية لغات، رسمية، معاهد أزهرية، ومدارس خاصة</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">43</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مدارس</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">معاهد أزهرية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">أزهر، معهد أزهري، ابتدائي أزهري، ثانوي أزهري</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">44</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مدارس</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">مدارس خاصة وفنية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">خاصة، صنايع، تمريض، تجارة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">45</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مكتبات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">أدوات مدرسية وجامعية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">أدوات مكتبية، كشكول، أقلام، شنط</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مكتبات أدوات مدرسية، أدوات جامعية، طباعة ونسخ مستندات وكتب</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">46</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مكتبات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">طباعة وتصوير وخدمات طابعات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">تصوير، طباعة، ملزمات، مجلات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">47</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مكتبات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">بيع كتب وروايات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">كتب، روايات، قصص، دينية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">48</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">محلات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">سوبرماركت ومواد غذائية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">بقالة، تموين، ماركت، ألبان</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">محلات ملابس، أحذية، أدوات منزلية، أجهزة ومواد غذائية</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">49</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">محلات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">ملابس وأحذية ونوفوتيه</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">رجالي، حريمي، أطفال، أحذية، شنط</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">50</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">محلات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">أدوات منزلية وأجهزة كهربائية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">أجهزة، مطبخ، أدوات منزلية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">51</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">محلات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">موبايلات وإلكترونيات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">موبايل، صيانة، اكسسوارات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">52</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">شركات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">شركات مقاولات وديكور وعقارات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">مقاولات، تشطيبات، ديكور، عقارات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">شركات المقاولات، الشحن والتوصيل، البرمجيات والدعاية والإعلان</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">53</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">شركات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">شركات شحن ونقل بضائع</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">شحن، توصيل، بضائع، نقل</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">54</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">شركات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">شركات برمجيات ودعاية وتسويق</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">برمجيات، تسويق، دعاية، إعلان، تصميم</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">55</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">نقابات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">نقابة المهندسين والفرعيات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مهندسين، كارنيه، مشروع علاج</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">نقابة المهندسين، المعلمين، التجاريين، والأطباء والصيادلة والفرعيات</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">56</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">نقابات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">نقابة المعلمين والتجاريين</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">معلمين، تجاريين، معاشات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">57</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">نقابات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">نقابة الأطباء والصيادلة والأسنان</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">أطباء، صيادلة، علاج</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">58</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">جمعيات خيرية ومؤسسات أهلية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">جمعيات كفالة الأيتام والمساعدات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">أيتام، كفالة، إطعام، مساعدات، صدقات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">الجمعيات الخيرية، كفالة الأيتام، المساعدات الاجتماعية والمؤسسات الأهلية</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">59</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">جمعيات خيرية ومؤسسات أهلية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مؤسسات أهلية وتنمية مجتمع</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">تنمية مجتمع، خدمات أهلية، تدريب</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">60</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">جمعيات خيرية ومؤسسات أهلية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">مستوصفات خيرية وبنوك طعام</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">مستوصف خيري، علاج خيري، بنك طعام</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">61</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">فنيين وصنايعية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">فني كهرباء منازل</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">كهربائي، تأسيس، إضاءة</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">كهربائي، سباك، نجار، فني تكييف وأجهزة</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">62</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">فنيين وصنايعية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">سباكة وصيانة شبكات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">سباك، خلاطات، تسريب</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">63</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">فنيين وصنايعية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">صيانة تكييفات وتبريد</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">تكييف، فريون، شحن</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">64</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">فنيين وصنايعية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">نجارة وأثاث</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">نجار، غرف، مطبخ</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">65</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">فنيين وصنايعية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">نقاشة وطلاء</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">نقاش، ديكور، دهان</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">66</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">فنيين وصنايعية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">صيانة أجهزة منزلية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">غسالات، ثلاجات، بوتاجاز</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">67</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مصانع ورش</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مصانع وتشكيل ألومنيوم</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">ألومنيوم، قطاعات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مصانع ألومنيوم، ورش حدادة وخراطة ومسابك</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">68</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مصانع ورش</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">ورش حدادة وكريتال</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">حديد، بوابات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">69</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مصانع ورش</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">خراطة ومسابك ألومنيوم</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مخرطة، سباكة</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">70</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">كافيهات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">كافيهات عائلية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">عائلات، هدوء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">كافيهات عائلية وجلسات شبابية ومشروبات طازجة</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">71</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">كافيهات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">عصائر وفرش</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">قصب، مانجو، كوكتيل</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">72</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مستشفيات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">مستشفيات خاصة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">عناية، عمليات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">مستشفيات عامة وخاصة ومراكز طوارئ</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">73</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مستشفيات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مراكز طوارئ وإسعاف</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">طوارئ، حوادث</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">74</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مراكز أشعة وتحاليل</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">معامل تحاليل طبية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">دم، سكر، تحاليل شاملة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">معامل تحاليل ومراكز أشعة مقطعية وتلفزيونية</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">75</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مراكز أشعة وتحاليل</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مراكز أشعة ورنين</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">رنين، مقطعية، سونار</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">76</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">خدمات سيارات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">ميكانيكا وسرفيس سيارات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">عفشة، محرك، صيانة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">ميكانيكي، كهربائي سيارات، قطع غيار ومغاسل</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">77</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">خدمات سيارات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">قطع غيار واكسسوارات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">زيت، فلاتر، بطاريات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">78</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">نوادي ومراكز رياضية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">صالات جيم كمال أجسام</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">حديد، فتنس، لياقة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">جيم، صالات لياقة بدنية، وملاعب خماسية</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">79</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">نوادي ومراكز رياضية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">ملاعب خماسية كورة</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">حجز، نجيل صناعي، كرة قدم</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">80</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">خدمات منزلية ومناسبات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">قاعات أفراح ومناسبات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">زفاف، خطوبة، مناسبات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">قاعات أفراح، فراشة، وتنسيق مناسبات</Data></Cell>
+   </Row>
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <PageSetup>
+    <Layout x:Orientation="Landscape"/>
+   </PageSetup>
+   <DisplayRightToLeft/>
+   <FreezePanes/>
+   <FrozenNoSplit/>
+   <SplitHorizontal>2</SplitHorizontal>
+   <TopRowBottomPane>2</TopRowBottomPane>
+  </WorksheetOptions>
+ </Worksheet>
+
+ <Worksheet ss:Name="ملخص التصنيفات الرئيسية">
+  <Table ss:DefaultColumnWidth="60" ss:DefaultRowHeight="24">
+   <Column ss:Width="40"/>
+   <Column ss:Width="160"/>
+   <Column ss:Width="80"/>
+   <Column ss:Width="300"/>
+   <Column ss:Width="140"/>
+   <Row ss:Height="36">
+    <Cell ss:MergeAcross="4" ss:StyleID="HeaderTitle"><Data ss:Type="String">قائمة التصنيفات الرئيسية الـ 21 المعتمدة في دليل ميت غمر</Data></Cell>
+   </Row>
+   <Row ss:Height="28">
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">م</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">اسم التصنيف الرئيسي</Data></Cell>
+    <Cell ss:StyleID="TableHeaderGold"><Data ss:Type="String">عدد الفرعيات</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">وصف التصنيف ونطاقه</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">معرّف النظام (ID)</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">1</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مطاعم</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">5</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مشويات، كريب، وجبات سريعة، وأسماك طازجة</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">cat_restaurants</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">2</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">عيادات وأطباء</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">21</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">أطباء واستشاريين لكافة التخصصات الطبية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">cat_doctors</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مراكز طبية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مراكز طبية متخصصة، مجمعات عيادات، ومراكز جراحة اليوم الواحد</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">cat_medical_centers</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">4</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">صيدليات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">صيدليات تعمل على مدار 24 ساعة وخدمة توصيل الأدوية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">cat_pharmacies</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">5</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مصالح حكومية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">4</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مجلس المدينة، السجل المدني، الشهر العقاري، البريد، ومكاتب الصحة والتموين</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">cat_government</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">6</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">بنوك</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">البنوك الوطنية والاستثمارية، ماكينات ATM، وشركات الصرافة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">cat_banks</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">7</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">جامعات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">2</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">جامعة الأزهر فرع تفهنا الأشراف، المعاهد العليا والكليات التخصصية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">cat_universities</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">8</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مدارس</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">مدارس رسمية لغات، رسمية، معاهد أزهرية، ومدارس خاصة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">cat_schools</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">9</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مكتبات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مكتبات أدوات مدرسية، أدوات جامعية، طباعة ونسخ مستندات وكتب</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">cat_libraries</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">10</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">محلات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">4</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">محلات ملابس، أحذية، أدوات منزلية، أجهزة ومواد غذائية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">cat_shops</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">11</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">شركات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">شركات المقاولات، الشحن والتوصيل، البرمجيات والدعاية والإعلان</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">cat_companies</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">12</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">نقابات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">نقابة المهندسين، المعلمين، التجاريين، والأطباء والصيادلة والفرعيات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">cat_syndicates</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">13</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">جمعيات خيرية ومؤسسات أهلية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">الجمعيات الخيرية، كفالة الأيتام، المساعدات الاجتماعية والمؤسسات الأهلية</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">cat_charities</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">14</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">فنيين وصنايعية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">6</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">كهربائي، سباك، نجار، فني تكييف وأجهزة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">cat_technicians</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">15</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مصانع ورش</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مصانع ألومنيوم، ورش حدادة وخراطة ومسابك</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">cat_factories</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">16</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">كافيهات</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">2</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">كافيهات عائلية وجلسات شبابية ومشروبات طازجة</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">cat_cafes</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">17</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مستشفيات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">2</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">مستشفيات عامة وخاصة ومراكز طوارئ</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">cat_hospitals</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">18</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">مراكز أشعة وتحاليل</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">2</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">معامل تحاليل ومراكز أشعة مقطعية وتلفزيونية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">cat_radiology</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">19</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">خدمات سيارات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">2</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">ميكانيكي، كهربائي سيارات، قطع غيار ومغاسل</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">cat_automotive</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">20</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">نوادي ومراكز رياضية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="Number">2</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">جيم، صالات لياقة بدنية، وملاعب خماسية</Data></Cell>
+    <Cell ss:StyleID="RowEven"><Data ss:Type="String">cat_clubs</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">21</Data></Cell>
+    <Cell ss:StyleID="CategoryCell"><Data ss:Type="String">خدمات منزلية ومناسبات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="Number">1</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">قاعات أفراح، فراشة، وتنسيق مناسبات</Data></Cell>
+    <Cell ss:StyleID="RowOdd"><Data ss:Type="String">cat_home_events</Data></Cell>
+   </Row>
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <DisplayRightToLeft/>
+   <FreezePanes/>
+   <FrozenNoSplit/>
+   <SplitHorizontal>2</SplitHorizontal>
+   <TopRowBottomPane>2</TopRowBottomPane>
+  </WorksheetOptions>
+ </Worksheet>
+</Workbook>
