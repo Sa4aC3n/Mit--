@@ -7,7 +7,6 @@ import com.example.data.engine.DiscoveryJobManager
 import com.example.data.engine.MetGhamrGeoHierarchy
 import com.example.data.firebase.FirebaseBusinessSyncManager
 import com.example.data.firebase.FirebaseFirestoreSyncManager
-import com.example.data.firebase.FirebaseRatingManager
 import com.example.data.firebase.FirestoreRatingManager
 import com.example.data.firebase.FirestoreSyncStatus
 import com.example.data.firebase.CloudSyncStatus
@@ -60,7 +59,7 @@ class DirectoryRepository(
     }
 
     private fun getBackendToken(): String {
-        return currentUser.value?.id ?: "token_admin_super_secret_session"
+        return currentUser.value?.id ?: authService.auth?.currentUser?.uid ?: ""
     }
 
     // Auth State & Current User
@@ -264,42 +263,18 @@ class DirectoryRepository(
                 // Non-blocking
             }
 
+            // 1.c One-time migration: migrate legacy Realtime Database records to unified Cloud Firestore
+            try {
+                FirebaseBusinessSyncManager.migrateRealtimeDatabaseToFirestore(context, directoryDao)
+            } catch (e: Exception) {
+                // Non-blocking
+            }
+
             // 2. Attach Scoped Real-time Firestore Live Listener for instant published updates
             try {
                 FirebaseFirestoreSyncManager.startRealtimeFirestoreSync(directoryDao, repositoryScope)
             } catch (e: Exception) {
                 // Ignore if permission denied
-            }
-
-            // 3. Attach Real-time Cloud Sync Listener for Realtime Database
-            try {
-                FirebaseBusinessSyncManager.startRealtimeCloudSync(
-                    onBusinessUpserted = { remoteBusiness ->
-                        repositoryScope.launch {
-                            directoryDao.insertBusiness(remoteBusiness)
-                        }
-                    },
-                    onBusinessDeleted = { deletedId ->
-                        repositoryScope.launch {
-                            directoryDao.deleteBusiness(deletedId)
-                        }
-                    }
-                )
-            } catch (e: Exception) {
-                // Ignore if realtime sync is not permitted
-            }
-
-            // 4. RTDB fallback check (without overwriting Firestore)
-            try {
-                val cloudFetchResult = FirebaseBusinessSyncManager.fetchAllBusinessesFromCloud()
-                if (cloudFetchResult.isSuccess) {
-                    val remoteList = cloudFetchResult.getOrNull() ?: emptyList()
-                    if (remoteList.isNotEmpty()) {
-                        directoryDao.insertBusinesses(remoteList)
-                    }
-                }
-            } catch (e: Exception) {
-                // Safely fallback to local Room cache
             }
         }
     }
@@ -321,6 +296,11 @@ class DirectoryRepository(
     val allActiveBusinesses: Flow<List<BusinessEntity>> = directoryDao.getAllActiveBusinesses()
     val allBusinessesAdmin: Flow<List<BusinessEntity>> = directoryDao.getAllBusinessesAdmin()
 
+    val categoryCounts: Flow<List<com.example.data.local.CategoryCountResult>> = directoryDao.getCategoryCounts()
+    fun getFeaturedBusinesses(limit: Int = 6): Flow<List<BusinessEntity>> = directoryDao.getFeaturedBusinesses(limit)
+    fun getTopRatedBusinesses(limit: Int = 6): Flow<List<BusinessEntity>> = directoryDao.getTopRatedBusinesses(limit)
+    fun getRecentlyAddedBusinesses(limit: Int = 6): Flow<List<BusinessEntity>> = directoryDao.getRecentlyAddedBusinesses(limit)
+
     fun getBusinessById(id: String): Flow<BusinessEntity?> = directoryDao.getBusinessById(id)
 
     fun getBusinessesByCategory(categoryId: String): Flow<List<BusinessEntity>> =
@@ -335,10 +315,9 @@ class DirectoryRepository(
 
     suspend fun saveBusiness(business: BusinessEntity) {
         directoryDao.insertBusiness(business)
-        // Automatically persist and publish to Firestore (Source of Truth) and Realtime node
+        // Automatically persist and publish to Cloud Firestore (Single Source of Truth)
         repositoryScope.launch {
             FirebaseFirestoreSyncManager.uploadBusinessToFirestore(business)
-            FirebaseBusinessSyncManager.pushBusinessToCloud(business)
         }
     }
 
@@ -348,7 +327,6 @@ class DirectoryRepository(
             val updated = directoryDao.getBusinessByIdDirect(id)
             if (updated != null) {
                 FirebaseFirestoreSyncManager.uploadBusinessToFirestore(updated)
-                FirebaseBusinessSyncManager.pushBusinessToCloud(updated)
             }
         }
     }
@@ -359,7 +337,6 @@ class DirectoryRepository(
             val updated = directoryDao.getBusinessByIdDirect(id)
             if (updated != null) {
                 FirebaseFirestoreSyncManager.uploadBusinessToFirestore(updated)
-                FirebaseBusinessSyncManager.pushBusinessToCloud(updated)
             }
         }
     }
@@ -368,32 +345,22 @@ class DirectoryRepository(
         directoryDao.deleteBusiness(id)
         repositoryScope.launch {
             FirebaseFirestoreSyncManager.deleteOrArchiveBusinessInFirestore(id, archiveOnly = true)
-            FirebaseBusinessSyncManager.deleteBusinessFromCloud(id)
         }
     }
 
     /**
-     * Pushes all local businesses in Room DB to Firebase Cloud Server.
+     * Pushes all local businesses in Room DB to Cloud Firestore.
      */
     suspend fun syncAllBusinessesToCloud(): Result<Int> {
         val localList = directoryDao.getAllBusinessesDirect()
-        return FirebaseBusinessSyncManager.pushBusinessesBatchToCloud(localList)
+        return FirebaseFirestoreSyncManager.batchUploadBusinessesToFirestore(localList)
     }
 
     /**
-     * Pulls all businesses from Firebase Cloud Server into local Room DB.
+     * Pulls updated businesses from Cloud Firestore into local Room DB.
      */
     suspend fun pullBusinessesFromCloud(): Result<Int> {
-        val result = FirebaseBusinessSyncManager.fetchAllBusinessesFromCloud()
-        return if (result.isSuccess) {
-            val list = result.getOrNull() ?: emptyList()
-            if (list.isNotEmpty()) {
-                directoryDao.insertBusinesses(list)
-            }
-            Result.success(list.size)
-        } else {
-            Result.failure(result.exceptionOrNull() ?: Exception("فشل الاتصال بالسيرفر السحابي"))
-        }
+        return FirebaseFirestoreSyncManager.performIncrementalSync(context, directoryDao, forceFullSync = true)
     }
 
     // --- Reviews ---
@@ -470,23 +437,15 @@ class DirectoryRepository(
 
         recalculateBusinessRating(businessId)
 
-        // Asynchronously persist and sync rating to Firestore (Source of Truth) and Realtime Database
+        // Asynchronously persist and sync rating to Firestore (Single Source of Truth)
         repositoryScope.launch {
             val business = directoryDao.getBusinessByIdDirect(businessId)
             val avg = directoryDao.getAverageRating(businessId) ?: reviewToSave.rating
             val cnt = directoryDao.getReviewCount(businessId)
             val roundedAvg = if (cnt > 0) (kotlin.math.round(avg * 10) / 10.0f) else reviewToSave.rating
             
-            // 1. Sync to Firestore
+            // Sync to Firestore
             FirestoreRatingManager.saveRatingAndReview(
-                businessId = businessId,
-                businessName = business?.name ?: "منشأة",
-                review = reviewToSave,
-                newAverageRating = roundedAvg,
-                newRatingCount = cnt
-            )
-            // 2. Realtime fallback
-            FirebaseRatingManager.saveRating(
                 businessId = businessId,
                 businessName = business?.name ?: "منشأة",
                 review = reviewToSave,
@@ -503,11 +462,14 @@ class DirectoryRepository(
         val review = directoryDao.getReviewByIdDirect(reviewId) ?: return false
 
         // Check ownership or admin status
-        if (review.userId == user.id) {
+        if (review.userId == user.id || isOwnerAccount(user)) {
             directoryDao.deleteReview(reviewId)
             recalculateBusinessRating(review.businessId)
             repositoryScope.launch {
-                FirebaseRatingManager.deleteRating(review.businessId, reviewId)
+                val avg = directoryDao.getAverageRating(review.businessId) ?: 0.0f
+                val cnt = directoryDao.getReviewCount(review.businessId)
+                val roundedAvg = if (cnt > 0) (kotlin.math.round(avg * 10) / 10.0f) else 0.0f
+                FirestoreRatingManager.deleteRatingAndReview(review.businessId, reviewId, roundedAvg, cnt)
             }
             return true
         }
@@ -1607,7 +1569,6 @@ class DirectoryRepository(
 
                 repositoryScope.launch {
                     FirebaseFirestoreSyncManager.batchUploadBusinessesToFirestore(parsedBusinesses)
-                    FirebaseBusinessSyncManager.pushBusinessesBatchToCloud(parsedBusinesses)
                 }
             }
 
@@ -1818,10 +1779,10 @@ class DirectoryRepository(
                 directoryDao.insertBusinessSources(allSources)
             }
 
-            // Asynchronously push approved discovered candidates to Cloud Server
+            // Asynchronously push approved discovered candidates to Cloud Firestore
             if (newBusinessEntities.isNotEmpty()) {
                 repositoryScope.launch {
-                    FirebaseBusinessSyncManager.pushBusinessesBatchToCloud(newBusinessEntities)
+                    FirebaseFirestoreSyncManager.batchUploadBusinessesToFirestore(newBusinessEntities)
                 }
             }
 

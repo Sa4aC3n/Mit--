@@ -93,6 +93,49 @@ object FirestoreRatingManager {
     }
 
     /**
+     * Deletes a review document in Firestore and atomically recalculates the aggregated rating on businesses/{businessId}.
+     */
+    suspend fun deleteRatingAndReview(
+        businessId: String,
+        reviewId: String,
+        newAverageRating: Float,
+        newRatingCount: Int
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val db = firestore ?: return@withContext Result.failure(
+            IllegalStateException("Firestore غير متاح لحذف التقييم")
+        )
+
+        return@withContext try {
+            val batch = db.batch()
+            val reviewRef = db.collection(COL_REVIEWS).document(reviewId)
+            batch.delete(reviewRef)
+
+            val businessRef = db.collection(COL_BUSINESSES).document(businessId)
+            batch.update(
+                businessRef,
+                mapOf(
+                    "ratingAverage" to newAverageRating.toDouble(),
+                    "ratingCount" to newRatingCount,
+                    "updatedAt" to System.currentTimeMillis()
+                )
+            )
+
+            batch.commit().await()
+            Log.d(TAG, "Successfully deleted review $reviewId and updated business $businessId in Firestore")
+            Result.success(true)
+        } catch (e: Exception) {
+            val isPermission = (e is com.google.firebase.firestore.FirebaseFirestoreException && e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) ||
+                    (e.message?.contains("PERMISSION_DENIED", ignoreCase = true) == true)
+            if (isPermission) {
+                Log.i(TAG, "Firestore review deletion restricted. Removed locally in Room.")
+            } else {
+                Log.w(TAG, "Notice deleting review in Firestore: ${e.message}")
+            }
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Loads paginated reviews for a business directly from Firestore.
      */
     suspend fun fetchPaginatedReviews(

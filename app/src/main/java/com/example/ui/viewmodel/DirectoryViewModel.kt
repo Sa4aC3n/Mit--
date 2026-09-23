@@ -207,23 +207,13 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
 
     val categoriesWithCounts: StateFlow<List<CategoryItem>> = combine(
         repository.categories,
-        allActiveBusinesses
-    ) { catList, activeList ->
-        val countsMap = activeList.groupingBy { it.categoryId }.eachCount()
+        repository.categoryCounts
+    ) { catList, countResults ->
+        val countsMap = countResults.associate { it.categoryId to it.count }
         catList.map { cat ->
             val realCount = countsMap[cat.id] ?: 0
-            val subcatsWithCounts = cat.subcategories.map { sub ->
-                val subCount = activeList.count { b ->
-                    b.categoryId == cat.id && (
-                        b.specialty.contains(sub.nameAr, ignoreCase = true) ||
-                        sub.keywords.any { kw -> b.specialty.contains(kw, ignoreCase = true) || b.description.contains(kw, ignoreCase = true) }
-                    )
-                }
-                sub.copy(count = subCount)
-            }
             cat.copy(
-                count = if (realCount > 0) realCount else cat.count,
-                subcategories = subcatsWithCounts
+                count = if (realCount > 0) realCount else cat.count
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), InitialDataSeed.categories)
@@ -255,16 +245,13 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    val featuredBusinesses: StateFlow<List<BusinessEntity>> = allActiveBusinesses
-        .map { list -> list.filter { it.isVerified || it.ratingAverage >= 4.5f }.take(6) }
+    val featuredBusinesses: StateFlow<List<BusinessEntity>> = repository.getFeaturedBusinesses(6)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val topRatedBusinesses: StateFlow<List<BusinessEntity>> = allActiveBusinesses
-        .map { list -> list.sortedWith(compareByDescending<BusinessEntity> { it.ratingAverage }.thenByDescending { it.ratingCount }).take(6) }
+    val topRatedBusinesses: StateFlow<List<BusinessEntity>> = repository.getTopRatedBusinesses(6)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val recentlyAddedBusinesses: StateFlow<List<BusinessEntity>> = allActiveBusinesses
-        .map { list -> list.sortedByDescending { it.updatedAt }.take(6) }
+    val recentlyAddedBusinesses: StateFlow<List<BusinessEntity>> = repository.getRecentlyAddedBusinesses(6)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isRefreshing = MutableStateFlow(false)

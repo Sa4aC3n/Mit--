@@ -418,4 +418,56 @@ object FirebaseBusinessSyncManager {
             }
         }
     }
+
+    private const val KEY_RTDB_MIGRATED = "rtdb_businesses_migrated_to_firestore_v1"
+
+    /**
+     * One-time safe idempotent migration: Reads all legacy business records from Realtime Database,
+     * uploads them to Cloud Firestore (Single Source of Truth), and updates Room local cache.
+     * Prevents duplication and marks migration complete in SharedPreferences.
+     */
+    suspend fun migrateRealtimeDatabaseToFirestore(
+        context: android.content.Context,
+        dao: com.example.data.local.DirectoryDao
+    ): Result<Int> = withContext(Dispatchers.IO) {
+        val prefs = context.getSharedPreferences("met_ghamr_sync_migration_prefs", android.content.Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_RTDB_MIGRATED, false)) {
+            return@withContext Result.success(0)
+        }
+
+        val db = database ?: return@withContext Result.failure(IllegalStateException("Realtime Database غير متاح"))
+
+        try {
+            val snapshot = db.getReference(BUSINESSES_NODE).get().await()
+            if (!snapshot.exists() || !snapshot.hasChildren()) {
+                prefs.edit().putBoolean(KEY_RTDB_MIGRATED, true).apply()
+                return@withContext Result.success(0)
+            }
+
+            val rtdbList = mutableListOf<BusinessEntity>()
+            for (child in snapshot.children) {
+                snapshotToBusiness(child)?.let { rtdbList.add(it) }
+            }
+
+            if (rtdbList.isEmpty()) {
+                prefs.edit().putBoolean(KEY_RTDB_MIGRATED, true).apply()
+                return@withContext Result.success(0)
+            }
+
+            Log.d(TAG, "Migrating ${rtdbList.size} businesses from Realtime Database to Cloud Firestore...")
+            
+            // Upload to Cloud Firestore as authoritative source
+            FirebaseFirestoreSyncManager.batchUploadBusinessesToFirestore(rtdbList)
+            
+            // Insert into Room local database cache
+            dao.insertBusinesses(rtdbList)
+
+            prefs.edit().putBoolean(KEY_RTDB_MIGRATED, true).apply()
+            Log.d(TAG, "Realtime Database migration to Cloud Firestore completed successfully (${rtdbList.size} items).")
+            Result.success(rtdbList.size)
+        } catch (e: Exception) {
+            Log.w(TAG, "Notice during RTDB migration: ${e.message}")
+            Result.failure(e)
+        }
+    }
 }

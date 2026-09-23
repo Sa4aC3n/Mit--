@@ -21,16 +21,15 @@ service cloud.firestore {
       // Client query MUST include .whereEqualTo("isPublished", true)
       allow read: if (resource != null && resource.data.isPublished == true) || isAdmin();
 
-      // NO DIRECT CLIENT WRITES:
-      // Normal users and admins are strictly forbidden from writing directly to businesses from Android.
-      // All creation, publication, deduplication merging, and tombstones occur via Cloud Functions (Admin SDK).
-      allow write: if false;
+      // Authorized Server/Admin write permission:
+      // Admins (verified via custom claim admin == true) can manage businesses directly or via Cloud Functions.
+      allow write: if isAdmin();
     }
 
     // 2. Legacy Activities Collection (Protected, read-only for published)
     match /activities/{activityId} {
       allow read: if (resource != null && resource.data.isPublished == true) || isAdmin();
-      allow write: if false;
+      allow write: if isAdmin();
     }
 
     // 3. User Contributions & Moderation Queue
@@ -67,11 +66,11 @@ service cloud.firestore {
     // Private user request payloads are strictly quarantined in privatePayload subcollection (Admin only)
     match /businessSources/{sourceId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isAdmin();
 
       match /privatePayload/{docId} {
         allow read: if isAdmin();
-        allow write: if false;
+        allow write: if isAdmin();
       }
     }
 
@@ -115,8 +114,8 @@ service cloud.firestore {
     match /business_tombstones/{tombstoneId} {
       // Public directory clients can read tombstones to evict unpublished/deleted records from local Room cache
       allow read: if true;
-      // All tombstone generation is done securely by Cloud Functions, Admin SDK, or Migration
-      allow write: if false;
+      // Admins and Cloud Functions can create/manage deletion tombstones
+      allow write: if isAdmin();
     }
   }
 }

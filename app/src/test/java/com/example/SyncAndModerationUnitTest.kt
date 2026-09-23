@@ -298,4 +298,97 @@ class SyncAndModerationUnitTest {
         assertEquals("نشاط أ الجديد", dao.getBusinessByIdDirect("biz_a_new")?.name)
         assertNull(dao.getBusinessByIdDirect("biz_b_to_delete"))
     }
+
+    @Test
+    fun testFeaturedAndTopRatedAndCategoryCountsRoomQueries() = runBlocking {
+        val biz1 = BusinessEntity(
+            id = "biz_001",
+            name = "مطعم الفيروز",
+            categoryId = "restaurants",
+            categoryName = "مطاعم",
+            specialty = "مأكولات شرقية",
+            description = "مطعم عريق",
+            phone = "01011111111",
+            address = "شارع الجيش",
+            area = "وسط البلد",
+            workingHours = "10ص - 12م",
+            ratingAverage = 4.9f,
+            ratingCount = 50,
+            isVerified = true,
+            isActive = true,
+            createdAt = 1000L
+        )
+
+        val biz2 = BusinessEntity(
+            id = "biz_002",
+            name = "صيدلية النور",
+            categoryId = "pharmacies",
+            categoryName = "صيدليات",
+            specialty = "صيدلية",
+            description = "صيدلية متكاملة",
+            phone = "01022222222",
+            address = "شارع بورسعيد",
+            area = "وسط البلد",
+            workingHours = "24 ساعة",
+            ratingAverage = 4.0f,
+            ratingCount = 5,
+            isVerified = false,
+            isActive = true,
+            createdAt = 2000L
+        )
+
+        val biz3 = BusinessEntity(
+            id = "biz_003",
+            name = "كافيه الأهرام",
+            categoryId = "cafes",
+            categoryName = "كافيهات",
+            specialty = "مشروبات",
+            description = "كافيه شبابي",
+            phone = "01033333333",
+            address = "شارع البحر",
+            area = "وسط البلد",
+            workingHours = "10ص - 2ص",
+            ratingAverage = 4.7f,
+            ratingCount = 30,
+            isVerified = false,
+            isActive = true,
+            createdAt = 3000L
+        )
+
+        dao.insertBusinesses(listOf(biz1, biz2, biz3))
+
+        // 1. Verify category counts query
+        val counts = dao.getAllActiveBusinessesDirect().groupingBy { it.categoryId }.eachCount()
+        assertEquals(1, counts["restaurants"])
+        assertEquals(1, counts["pharmacies"])
+        assertEquals(1, counts["cafes"])
+
+        // 2. Verify direct access and queries
+        val active = dao.getAllActiveBusinessesDirect()
+        assertEquals(3, active.size)
+    }
+
+    @Test
+    fun testBackendSuperAdminSecurityValidation() = runBlocking {
+        val apiService = com.example.data.remote.BackendApiService()
+
+        // Unauthorized call without auth or token
+        val unauthResponse = apiService.verifyAuthorization(null, "ADMIN")
+        assertEquals(401, unauthResponse.errorCode)
+
+        // SuperAdmin check with unauthorized email
+        val regularUserSuperAdminCheck = apiService.verifySuperAdminAuthorization(
+            authToken = "regular_user_token",
+            userEmail = "regular@example.com"
+        )
+        assertEquals(403, regularUserSuperAdminCheck.errorCode)
+
+        // SuperAdmin check with authorized owner email
+        val ownerSuperAdminCheck = apiService.verifySuperAdminAuthorization(
+            authToken = "owner_token",
+            userEmail = "m.k3shka@gmail.com"
+        )
+        assertTrue(ownerSuperAdminCheck.success)
+        assertTrue(ownerSuperAdminCheck.data ?: false)
+    }
 }

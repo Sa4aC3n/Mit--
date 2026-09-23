@@ -30,34 +30,56 @@ data class BackendResponse<T>(
 
 class BackendApiService {
 
-    // Simulated backend user database & session tokens
-    private val backendAdminTokens = mutableSetOf("token_admin_super_secret_session")
-
     /**
-     * Verifies user authorization and role on the Backend.
+     * Verifies user authorization and role on the Backend via FirebaseAuth and Firebase Custom Claims.
      */
     suspend fun verifyAuthorization(
         authToken: String?,
         requiredRole: String
     ): BackendResponse<Boolean> = withContext(Dispatchers.IO) {
-        if (authToken.isNullOrBlank()) {
+        val fbUser = try {
+            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        } catch (e: Exception) {
+            null
+        }
+
+        if (fbUser == null && authToken.isNullOrBlank()) {
             return@withContext BackendResponse(
                 success = false,
                 data = false,
-                message = "غير مصرح: رمز الجلسة غير موجود على الخادم (401 Unauthorized)",
+                message = "غير مصرح: يتطلب تسجيل الدخول بحساب معتمد على الخادم (401 Unauthorized)",
                 errorCode = 401
             )
         }
 
-        // Validate token against backend sessions
-        val isAdminToken = authToken.contains("admin") || backendAdminTokens.contains(authToken)
-        if (requiredRole == "ADMIN" && !isAdminToken) {
-            return@withContext BackendResponse(
-                success = false,
-                data = false,
-                message = "صلاحيات غير كافية: العملية تتطلب صلاحيات مشرف النظام (403 Forbidden)",
-                errorCode = 403
-            )
+        // If user is authenticated in Firebase, verify their ID token / custom claims
+        if (fbUser != null && requiredRole == "ADMIN") {
+            try {
+                val tokenResult = fbUser.getIdToken(false).await()
+                val claims = tokenResult.claims
+                val isAdminClaim = claims["admin"] == true
+                val isOwnerEmail = fbUser.email?.trim()?.equals("m.k3shka@gmail.com", ignoreCase = true) == true
+
+                if (!isAdminClaim && !isOwnerEmail) {
+                    return@withContext BackendResponse(
+                        success = false,
+                        data = false,
+                        message = "صلاحيات غير كافية: العملية تتطلب صلاحيات مشرف النظام المعتمدة عبر الخادم (403 Forbidden)",
+                        errorCode = 403
+                    )
+                }
+            } catch (e: Exception) {
+                // Check if currentUser email is owner email as fallback
+                val isOwnerEmail = fbUser.email?.trim()?.equals("m.k3shka@gmail.com", ignoreCase = true) == true
+                if (!isOwnerEmail) {
+                    return@withContext BackendResponse(
+                        success = false,
+                        data = false,
+                        message = "تعذر التحقق من صلاحيات المشرف عبر خادم المصادقة: ${e.localizedMessage}",
+                        errorCode = 403
+                    )
+                }
+            }
         }
 
         return@withContext BackendResponse(success = true, data = true, message = "تم التحقق من الصلاحيات بنجاح")
@@ -336,7 +358,16 @@ class BackendApiService {
         authToken: String?,
         userEmail: String?
     ): BackendResponse<Boolean> = withContext(Dispatchers.IO) {
-        if (authToken.isNullOrBlank()) {
+        val fbUser = try {
+            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        } catch (e: Exception) {
+            null
+        }
+
+        val effectiveEmail = userEmail ?: fbUser?.email
+        val isSuperAdmin = effectiveEmail?.trim()?.equals("m.k3shka@gmail.com", ignoreCase = true) == true
+
+        if (fbUser == null && authToken.isNullOrBlank()) {
             return@withContext BackendResponse(
                 success = false,
                 data = false,
@@ -344,11 +375,6 @@ class BackendApiService {
                 errorCode = 401
             )
         }
-
-        val isSuperAdmin = (userEmail == "m.k3shka@gmail.com") ||
-                authToken.contains("m.k3shka") ||
-                authToken == "admin_super_admin_id" ||
-                authToken == "token_admin_super_secret_session"
 
         if (!isSuperAdmin) {
             return@withContext BackendResponse(

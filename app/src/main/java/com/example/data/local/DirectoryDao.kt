@@ -17,6 +17,11 @@ import com.example.data.model.UserAccountEntity
 import com.example.data.model.UserContributionEntity
 import kotlinx.coroutines.flow.Flow
 
+data class CategoryCountResult(
+    val categoryId: String,
+    val count: Int
+)
+
 @Dao
 interface DirectoryDao {
 
@@ -26,6 +31,18 @@ interface DirectoryDao {
 
     @Query("SELECT * FROM businesses WHERE isActive = 1 ORDER BY isVerified DESC, ratingAverage DESC, viewCount DESC")
     suspend fun getAllActiveBusinessesDirect(): List<BusinessEntity>
+
+    @Query("SELECT * FROM businesses WHERE isActive = 1 AND (isVerified = 1 OR ratingAverage >= 4.5) ORDER BY isVerified DESC, ratingAverage DESC, viewCount DESC LIMIT :limit")
+    fun getFeaturedBusinesses(limit: Int = 6): Flow<List<BusinessEntity>>
+
+    @Query("SELECT * FROM businesses WHERE isActive = 1 ORDER BY ratingAverage DESC, ratingCount DESC LIMIT :limit")
+    fun getTopRatedBusinesses(limit: Int = 6): Flow<List<BusinessEntity>>
+
+    @Query("SELECT * FROM businesses WHERE isActive = 1 ORDER BY createdAt DESC LIMIT :limit")
+    fun getRecentlyAddedBusinesses(limit: Int = 6): Flow<List<BusinessEntity>>
+
+    @Query("SELECT categoryId, COUNT(*) as count FROM businesses WHERE isActive = 1 GROUP BY categoryId")
+    fun getCategoryCounts(): Flow<List<CategoryCountResult>>
 
     @Query("SELECT * FROM businesses WHERE id = :id")
     fun getBusinessById(id: String): Flow<BusinessEntity?>

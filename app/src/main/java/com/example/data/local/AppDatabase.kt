@@ -49,13 +49,41 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        private val MIGRATION_9_10 = object : androidx.room.migration.Migration(9, 10) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Ensure backup_records table exists for data persistence
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `backup_records` (
+                        `id` TEXT NOT NULL,
+                        `fileName` TEXT NOT NULL,
+                        `backupType` TEXT NOT NULL,
+                        `sizeBytes` INTEGER NOT NULL,
+                        `storageLocation` TEXT NOT NULL,
+                        `cloudUrl` TEXT,
+                        `checksumSha256` TEXT NOT NULL,
+                        `recordCountsJson` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `createdByUserEmail` TEXT,
+                        `status` TEXT NOT NULL,
+                        `notes` TEXT,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "met_ghamr_directory.db"
-                ).fallbackToDestructiveMigration().build()
+                )
+                    .addMigrations(MIGRATION_9_10)
+                    .fallbackToDestructiveMigrationOnDowngrade()
+                    .build()
                 INSTANCE = instance
                 instance
             }
