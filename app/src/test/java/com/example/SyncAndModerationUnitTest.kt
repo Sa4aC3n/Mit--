@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.engine.EntityResolutionAndDeduplicationEngine
+import com.example.data.firebase.FirebaseFirestoreSyncManager
 import com.example.data.local.AppDatabase
 import com.example.data.local.DirectoryDao
 import com.example.data.model.BusinessEntity
@@ -149,7 +150,53 @@ class SyncAndModerationUnitTest {
     }
 
     @Test
-    fun testRoomTombstoneDeletionRemovesLocalRecord() = runBlocking {
+    fun testSyncEngineEvictsUnpublishedBusinessFromRoom() = runBlocking {
+        val initiallyPublishedBusiness = BusinessEntity(
+            id = "biz_legacy_unpub_301",
+            name = "نشاط قديم غير منشور",
+            categoryId = "services",
+            categoryName = "خدمات",
+            specialty = "خدمات قديمة",
+            description = "تم إلغاء نشره أثناء الترحيل",
+            phone = "01000000000",
+            address = "شارع الحرية",
+            area = "وسط البلد",
+            workingHours = "غير متاح",
+            isPublished = true,
+            isActive = true,
+            isDeleted = false,
+            updatedAt = 1700000000000L
+        )
+
+        // 1. Initial State: Business is published and present in Room
+        dao.insertBusiness(initiallyPublishedBusiness)
+        assertNotNull(dao.getBusinessByIdDirect("biz_legacy_unpub_301"))
+
+        // 2. Migration changes state in Firestore: isPublished becomes false with a new updatedAt
+        val unpublishFirestoreDoc = "biz_legacy_unpub_301" to mapOf(
+            "id" to "biz_legacy_unpub_301",
+            "name" to "نشاط قديم غير منشور",
+            "isPublished" to false,
+            "isActive" to true,
+            "isDeleted" to false,
+            "updatedAt" to 1700000050000L
+        )
+
+        // 3. Run the ACTUAL Sync Engine (no direct dao.deleteBusiness call)
+        val syncResult = FirebaseFirestoreSyncManager.processSyncBatchMaps(
+            dao = dao,
+            businessDocs = listOf(unpublishFirestoreDoc),
+            tombstoneDocs = emptyList()
+        )
+
+        // 4. Assert sync engine processed the deletion and record is evicted from Room
+        assertEquals(1, syncResult.deletedCount)
+        val afterSync = dao.getBusinessByIdDirect("biz_legacy_unpub_301")
+        assertNull(afterSync)
+    }
+
+    @Test
+    fun testSyncEngineEvictsTombstonedBusinessFromRoom() = runBlocking {
         val businessToTombstone = BusinessEntity(
             id = "biz_to_tombstone_202",
             name = "محل مغلق للبيع",
@@ -171,15 +218,84 @@ class SyncAndModerationUnitTest {
         dao.insertBusiness(businessToTombstone)
         assertNotNull(dao.getBusinessByIdDirect("biz_to_tombstone_202"))
 
-        // 2. Incoming delta sync receives tombstone (isDeleted=true / ARCHIVED / DELETED)
-        // In FirebaseFirestoreSyncManager:
-        // if (isDeleted || verificationStatus == "ARCHIVED" || verificationStatus == "DELETED" || !isActive) {
-        //     dao.deleteBusiness(delId)
-        // }
-        dao.deleteBusiness("biz_to_tombstone_202")
+        // 2. Change feed tombstone arriving from business_tombstones
+        val tombstoneDoc = "tomb_202" to mapOf(
+            "id" to "tomb_202",
+            "businessId" to "biz_to_tombstone_202",
+            "reason" to "migration_unpublish_legacy",
+            "updatedAt" to 1700000060000L
+        )
 
-        // 3. Verify local copy is completely removed from Room cache
+        // 3. Run the ACTUAL Sync Engine with the tombstone
+        val syncResult = FirebaseFirestoreSyncManager.processSyncBatchMaps(
+            dao = dao,
+            businessDocs = emptyList(),
+            tombstoneDocs = listOf(tombstoneDoc)
+        )
+
+        // 4. Assert sync engine processed tombstone and evicted from Room
+        assertEquals(1, syncResult.deletedCount)
         val result = dao.getBusinessByIdDirect("biz_to_tombstone_202")
         assertNull(result)
+    }
+
+    @Test
+    fun testSyncEngineHandlesEqualTimestampsDeterministically() = runBlocking {
+        val sameTimestamp = 1700000099000L
+
+        // Two items with the EXACT same updatedAt timestamp:
+        // Biz A: Active published business
+        // Biz B: Existing in Room, but now tombstoned
+        val existingBizB = BusinessEntity(
+            id = "biz_b_to_delete",
+            name = "نشاط ب",
+            categoryId = "cafes",
+            categoryName = "كافيهات",
+            specialty = "كافيه",
+            description = "كافيه قديم",
+            phone = "01022223333",
+            address = "شارع البحر",
+            area = "وسط البلد",
+            workingHours = "10ص - 12م",
+            isPublished = true,
+            isActive = true,
+            isDeleted = false,
+            updatedAt = 1700000000000L
+        )
+        dao.insertBusiness(existingBizB)
+        assertNotNull(dao.getBusinessByIdDirect("biz_b_to_delete"))
+
+        val incomingBizA = "biz_a_new" to mapOf(
+            "id" to "biz_a_new",
+            "name" to "نشاط أ الجديد",
+            "categoryId" to "pharmacies",
+            "categoryName" to "صيدليات",
+            "isPublished" to true,
+            "isActive" to true,
+            "isDeleted" to false,
+            "updatedAt" to sameTimestamp
+        )
+
+        val incomingTombstoneB = "tomb_b" to mapOf(
+            "businessId" to "biz_b_to_delete",
+            "reason" to "unpublish",
+            "updatedAt" to sameTimestamp
+        )
+
+        val result = FirebaseFirestoreSyncManager.processSyncBatchMaps(
+            dao = dao,
+            businessDocs = listOf(incomingBizA),
+            tombstoneDocs = listOf(incomingTombstoneB)
+        )
+
+        // Verify Biz A was inserted and Biz B was deleted
+        assertEquals(1, result.upsertedCount)
+        assertEquals(1, result.deletedCount)
+        assertEquals(sameTimestamp, result.highestBusinessUpdatedAt)
+        assertEquals(sameTimestamp, result.highestTombstoneUpdatedAt)
+
+        assertNotNull(dao.getBusinessByIdDirect("biz_a_new"))
+        assertEquals("نشاط أ الجديد", dao.getBusinessByIdDirect("biz_a_new")?.name)
+        assertNull(dao.getBusinessByIdDirect("biz_b_to_delete"))
     }
 }

@@ -61,6 +61,7 @@ object FirebaseFirestoreSyncManager {
     // Firestore Collections
     const val COL_ACTIVITIES = "activities" // The primary collection for user-uploaded activities
     const val COL_BUSINESSES = "businesses"
+    const val COL_TOMBSTONES = "business_tombstones" // Authoritative deletion & unpublish feed
     const val COL_SOURCES = "businessSources"
     const val COL_CATEGORIES = "categories"
     const val COL_REVIEWS = "reviews"
@@ -69,6 +70,9 @@ object FirebaseFirestoreSyncManager {
     const val COL_AUDIT_LOGS = "auditLogs"
     const val COL_DISCOVERY_JOBS = "discoveryJobs"
     const val COL_SETTINGS = "settings"
+
+    private const val KEY_LAST_TOMBSTONE_SYNC_TS = "last_firestore_tombstone_sync_ts"
+    private const val KEY_LAST_TOMBSTONE_DOC_ID = "last_firestore_tombstone_doc_id"
 
     private val _syncStatus = MutableStateFlow(FirestoreSyncStatus())
     val syncStatus: StateFlow<FirestoreSyncStatus> = _syncStatus.asStateFlow()
@@ -116,22 +120,51 @@ object FirebaseFirestoreSyncManager {
         _syncStatus.value = _syncStatus.value.copy(lastSyncTimestamp = timestamp)
     }
 
+    fun getLastTombstoneCursor(context: Context): Pair<Long, String?> {
+        val prefs = getPrefs(context)
+        val ts = prefs.getLong(KEY_LAST_TOMBSTONE_SYNC_TS, 0L)
+        val docId = prefs.getString(KEY_LAST_TOMBSTONE_DOC_ID, null)
+        return Pair(ts, docId)
+    }
+
+    fun setLastTombstoneCursor(context: Context, timestamp: Long, docId: String?) {
+        getPrefs(context).edit()
+            .putLong(KEY_LAST_TOMBSTONE_SYNC_TS, timestamp)
+            .putString(KEY_LAST_TOMBSTONE_DOC_ID, docId)
+            .apply()
+    }
+
+    /**
+     * Resiliently extracts updatedAt as epoch milliseconds from document map.
+     */
+    fun extractMapUpdatedAt(data: Map<String, Any?>, defaultTs: Long = System.currentTimeMillis()): Long {
+        val v = data["updatedAt"] ?: return defaultTs
+        return when (v) {
+            is Number -> v.toLong()
+            is com.google.firebase.Timestamp -> v.toDate().time
+            is java.util.Date -> v.time
+            is String -> v.toLongOrNull() ?: defaultTs
+            else -> defaultTs
+        }
+    }
+
     /**
      * Resiliently extracts updatedAt as epoch milliseconds across numeric Long, Firestore Timestamp, or Double.
      * Guarantees unified Long type alignment between Android and Cloud Functions.
      */
     fun extractDocUpdatedAt(doc: DocumentSnapshot, defaultTs: Long = System.currentTimeMillis()): Long {
         return try {
-            doc.getLong("updatedAt")
-                ?: doc.getTimestamp("updatedAt")?.toDate()?.time
-                ?: doc.getDouble("updatedAt")?.toLong()
-                ?: defaultTs
-        } catch (e: Exception) {
-            try {
-                doc.getTimestamp("updatedAt")?.toDate()?.time ?: defaultTs
-            } catch (e2: Exception) {
-                defaultTs
+            val data = doc.data
+            if (data != null) {
+                extractMapUpdatedAt(data, defaultTs)
+            } else {
+                doc.getLong("updatedAt")
+                    ?: doc.getTimestamp("updatedAt")?.toDate()?.time
+                    ?: doc.getDouble("updatedAt")?.toLong()
+                    ?: defaultTs
             }
+        } catch (e: Exception) {
+            defaultTs
         }
     }
 
@@ -205,8 +238,16 @@ object FirebaseFirestoreSyncManager {
      * Handles English/Arabic field names, numbers, timestamps, strings, and GeoPoints.
      */
     fun documentToBusiness(doc: DocumentSnapshot): BusinessEntity? {
+        val data = doc.data ?: return null
+        return mapToBusiness(doc.id, data)
+    }
+
+    /**
+     * Reconstructs a BusinessEntity safely from a document ID and its raw key-value field map.
+     * Handles English/Arabic field names, numbers, timestamps, strings, and GeoPoints.
+     */
+    fun mapToBusiness(docId: String, data: Map<String, Any?>): BusinessEntity? {
         return try {
-            val data = doc.data ?: return null
 
             fun findString(vararg keys: String): String? {
                 for (k in keys) {
@@ -278,7 +319,7 @@ object FirebaseFirestoreSyncManager {
                 return defaultVal
             }
 
-            val id = findString("id", "_id", "uid", "activityId", "businessId") ?: doc.id
+            val id = findString("id", "_id", "uid", "activityId", "businessId") ?: docId
 
             // Resilient lookup for name across English and Arabic aliases
             val name = findString(
@@ -291,7 +332,7 @@ object FirebaseFirestoreSyncManager {
             }?.value?.toString()?.trim()
 
             if (name.isNullOrBlank()) {
-                Log.w(TAG, "Document ${doc.id} skipped: no valid name found in keys: ${data.keys}")
+                Log.w(TAG, "Document $docId skipped: no valid name found in keys: ${data.keys}")
                 return null
             }
 
@@ -363,7 +404,7 @@ object FirebaseFirestoreSyncManager {
             val updatedAt = findLong(System.currentTimeMillis(), "updatedAt", "updated_at", "تاريخ_التعديل")
             val isPublished = findBoolean(true, "isPublished", "published", "منشور")
             val isDeleted = findBoolean(false, "isDeleted", "deleted", "محذوف")
-            val archivedAt = doc.getLong("archivedAt")
+            val archivedAt = if (data.containsKey("archivedAt")) findLong(0L, "archivedAt") else null
             val approvedContributionId = findString("approvedContributionId")
 
             BusinessEntity(
@@ -407,9 +448,96 @@ object FirebaseFirestoreSyncManager {
                 approvedContributionId = approvedContributionId
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Error deserializing document ${doc.id}: ${e.message}", e)
+            Log.e(TAG, "Error deserializing document $docId: ${e.message}", e)
             null
         }
+    }
+
+    data class SyncBatchResult(
+        val upsertedCount: Int,
+        val deletedCount: Int,
+        val highestBusinessUpdatedAt: Long,
+        val highestTombstoneUpdatedAt: Long
+    )
+
+    /**
+     * Authoritative Sync Engine core: processes raw Firestore document maps for businesses and tombstones.
+     * Enforces:
+     * - Unpublished activities (isPublished == false) are strictly evicted from Room.
+     * - Tombstoned / Deleted / Archived activities are strictly evicted from Room.
+     * - Active published activities are upserted into Room.
+     * - Equal updatedAt timestamps are handled deterministically.
+     * - Persists modifications to Room database.
+     */
+    suspend fun processSyncBatchMaps(
+        dao: DirectoryDao,
+        businessDocs: List<Pair<String, Map<String, Any?>>>,
+        tombstoneDocs: List<Pair<String, Map<String, Any?>>> = emptyList(),
+        context: Context? = null
+    ): SyncBatchResult {
+        val now = System.currentTimeMillis()
+        var highestBizUpdatedAt = 0L
+        var highestTombUpdatedAt = 0L
+
+        val toUpsert = mutableListOf<BusinessEntity>()
+        val toDeleteIds = mutableSetOf<String>()
+
+        // 1. Process business document stream
+        for ((docId, data) in businessDocs) {
+            val docUpdatedAt = extractMapUpdatedAt(data, now)
+            if (docUpdatedAt > highestBizUpdatedAt) {
+                highestBizUpdatedAt = docUpdatedAt
+            }
+
+            val isDeleted = (data["isDeleted"] as? Boolean) ?: false
+            val isPublished = (data["isPublished"] as? Boolean) ?: true
+            val isActive = (data["isActive"] as? Boolean) ?: true
+            val verificationStatus = data["verificationStatus"]?.toString() ?: ""
+            val bizId = data["id"]?.toString() ?: docId
+
+            // If unpublished, deleted, inactive, or archived, it MUST be evicted from Room cache
+            if (!isPublished || isDeleted || !isActive || verificationStatus == "ARCHIVED" || verificationStatus == "DELETED") {
+                toDeleteIds.add(bizId)
+            } else {
+                val biz = mapToBusiness(docId, data)
+                if (biz != null) {
+                    toUpsert.add(biz)
+                }
+            }
+        }
+
+        // 2. Process tombstone stream
+        for ((docId, data) in tombstoneDocs) {
+            val tombUpdatedAt = extractMapUpdatedAt(data, now)
+            if (tombUpdatedAt > highestTombUpdatedAt) {
+                highestTombUpdatedAt = tombUpdatedAt
+            }
+
+            val targetBizId = data["businessId"]?.toString()
+                ?: data["id"]?.toString()
+                ?: docId
+
+            if (targetBizId.isNotBlank()) {
+                toDeleteIds.add(targetBizId)
+            }
+        }
+
+        // 3. Atomically apply changes to Room
+        if (toUpsert.isNotEmpty()) {
+            dao.insertBusinesses(toUpsert)
+        }
+        if (toDeleteIds.isNotEmpty()) {
+            for (id in toDeleteIds) {
+                dao.deleteBusiness(id)
+            }
+        }
+
+        return SyncBatchResult(
+            upsertedCount = toUpsert.size,
+            deletedCount = toDeleteIds.size,
+            highestBusinessUpdatedAt = highestBizUpdatedAt,
+            highestTombstoneUpdatedAt = highestTombUpdatedAt
+        )
     }
 
     /**
@@ -475,19 +603,19 @@ object FirebaseFirestoreSyncManager {
     }
 
     private var activeBusinessesLiveListener: ListenerRegistration? = null
+    private var activeTombstonesLiveListener: ListenerRegistration? = null
     private var sessionStartTime: Long = System.currentTimeMillis()
 
     /**
-     * Attaches a restricted, windowed Realtime Listener to 'businesses' Firestore collection.
-     * Listens ONLY to published activities updated after the session started, limited to 20 items.
-     * Does NOT listen to the entire collection to conserve quota and battery.
+     * Attaches restricted, windowed Realtime Listeners to 'businesses' and 'business_tombstones'.
+     * Listens ONLY to activities and tombstones updated after the session started, limited to conserve quota and battery.
      */
     fun startRealtimeFirestoreSync(
         dao: DirectoryDao,
         scope: CoroutineScope
     ) {
         val db = firestore ?: return
-        if (activeBusinessesLiveListener != null) return
+        if (activeBusinessesLiveListener != null || activeTombstonesLiveListener != null) return
 
         try {
             sessionStartTime = System.currentTimeMillis()
@@ -533,18 +661,39 @@ object FirebaseFirestoreSyncManager {
                         }
                     }
                 }
+
+            // Realtime listener on business_tombstones to immediately evict unpublished/deleted records
+            activeTombstonesLiveListener = db.collection(COL_TOMBSTONES)
+                .whereGreaterThan("updatedAt", sessionStartTime)
+                .limit(20)
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null || snapshot == null) return@addSnapshotListener
+                    scope.launch(Dispatchers.IO) {
+                        for (doc in snapshot.documents) {
+                            val targetBizId = doc.getString("businessId")
+                                ?: doc.getString("id")
+                                ?: doc.id
+                            if (targetBizId.isNotBlank()) {
+                                dao.deleteBusiness(targetBizId)
+                                Log.d(TAG, "Realtime tombstone evicted from Room: $targetBizId")
+                            }
+                        }
+                    }
+                }
         } catch (e: Exception) {
             Log.w(TAG, "Restricted realtime listener notice: ${e.message}")
         }
     }
 
     /**
-     * Detaches the realtime listener to avoid memory/read leaks when backgrounded.
+     * Detaches the realtime listeners to avoid memory/read leaks when backgrounded.
      */
     fun stopRealtimeFirestoreSync() {
         try {
             activeBusinessesLiveListener?.remove()
             activeBusinessesLiveListener = null
+            activeTombstonesLiveListener?.remove()
+            activeTombstonesLiveListener = null
         } catch (e: Exception) {
             // Safe cleanup
         }
@@ -665,6 +814,61 @@ object FirebaseFirestoreSyncManager {
                 if (snapshot.size() < pageSize) {
                     hasMore = false
                 }
+            }
+
+            // Sync authoritatively from business_tombstones to evict unpublishing and deletions
+            try {
+                val (lastTombTs, lastTombDocId) = if (forceFullSync) Pair(0L, null) else getLastTombstoneCursor(context)
+                var hasMoreTombstones = true
+                var lastVisibleTombDoc: DocumentSnapshot? = null
+                val tombPageSize = 100L
+
+                while (hasMoreTombstones) {
+                    var tombQuery: Query = db.collection(COL_TOMBSTONES)
+
+                    if (lastTombTs > 0L) {
+                        tombQuery = tombQuery.whereGreaterThanOrEqualTo("updatedAt", lastTombTs)
+                    }
+
+                    tombQuery = tombQuery.orderBy("updatedAt", Query.Direction.ASCENDING)
+                        .orderBy("id", Query.Direction.ASCENDING)
+                        .limit(tombPageSize)
+
+                    if (lastVisibleTombDoc == null && lastTombTs > 0L && !lastTombDocId.isNullOrBlank()) {
+                        tombQuery = tombQuery.startAfter(lastTombTs, lastTombDocId)
+                    } else if (lastVisibleTombDoc != null) {
+                        tombQuery = tombQuery.startAfter(lastVisibleTombDoc)
+                    }
+
+                    val tombSnapshot = tombQuery.get().await()
+                    if (tombSnapshot.isEmpty) {
+                        hasMoreTombstones = false
+                        break
+                    }
+
+                    for (tombDoc in tombSnapshot.documents) {
+                        val targetBizId = tombDoc.getString("businessId")
+                            ?: tombDoc.getString("id")
+                            ?: tombDoc.id
+                        if (targetBizId.isNotBlank()) {
+                            dao.deleteBusiness(targetBizId)
+                            totalDeleted++
+                        }
+                    }
+
+                    lastVisibleTombDoc = tombSnapshot.documents.lastOrNull()
+                    if (lastVisibleTombDoc != null) {
+                        val pageLastUpdatedAt = extractDocUpdatedAt(lastVisibleTombDoc, now)
+                        val pageLastId = lastVisibleTombDoc.getString("id") ?: lastVisibleTombDoc.id
+                        setLastTombstoneCursor(context, pageLastUpdatedAt, pageLastId)
+                    }
+
+                    if (tombSnapshot.size() < tombPageSize) {
+                        hasMoreTombstones = false
+                    }
+                }
+            } catch (tombEx: Exception) {
+                Log.w(TAG, "Tombstone sync notice: ${tombEx.message}")
             }
 
             // Sync sources using full pagination without static limit(100) ceiling

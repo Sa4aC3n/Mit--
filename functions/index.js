@@ -472,6 +472,15 @@ exports.archiveOrDeleteBusiness = functions.https.onCall(async (data, context) =
       timestamp: nowTs,
       serverSyncedAt: serverTime
     });
+
+    const tombstoneRef = db.collection("business_tombstones").doc(businessId);
+    t.set(tombstoneRef, {
+      id: businessId,
+      businessId: businessId,
+      reason: isHardDelete ? "DELETED" : "ARCHIVED",
+      updatedAt: nowTs,
+      serverSyncedAt: serverTime
+    });
   });
 
   return {
@@ -479,6 +488,61 @@ exports.archiveOrDeleteBusiness = functions.https.onCall(async (data, context) =
     message: "تم إدراج شاهد الحذف (Tombstone) بنجاح وإشعار المزامنة السحابية."
   };
 });
+
+/**
+ * Background Firestore Trigger: onBusinessWritten
+ * Automatically publishes tombstones to /business_tombstones whenever an activity
+ * is unpublished (isPublished: false), deleted (isDeleted: true), or removed from Firestore.
+ * This guarantees that Room caches on user devices reliably receive the unpublish/delete event.
+ */
+exports.onBusinessWritten = functions.firestore
+  .document("businesses/{businessId}")
+  .onWrite(async (change, context) => {
+    const businessId = context.params.businessId;
+
+    if (!change.after.exists) {
+      // Document was hard-deleted from Firestore
+      const nowTs = Date.now();
+      await db.collection("business_tombstones").doc(businessId).set({
+        id: businessId,
+        businessId: businessId,
+        reason: "DELETED",
+        updatedAt: nowTs,
+        serverSyncedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      return;
+    }
+
+    const beforeData = change.before.exists ? change.before.data() : null;
+    const afterData = change.after.data();
+
+    const wasPublished = beforeData ? beforeData.isPublished === true : false;
+    const isNowPublished = afterData.isPublished === true;
+    const isDeletedOrArchived =
+      afterData.isDeleted === true ||
+      afterData.isActive === false ||
+      afterData.verificationStatus === "ARCHIVED" ||
+      afterData.verificationStatus === "DELETED";
+
+    // If it was published and is now unpublished, OR if it has been deleted/archived:
+    if ((wasPublished && !isNowPublished) || isDeletedOrArchived || !isNowPublished) {
+      const nowTs =
+        typeof afterData.updatedAt === "number" && afterData.updatedAt > (beforeData?.updatedAt || 0)
+          ? afterData.updatedAt
+          : Date.now();
+
+      await db.collection("business_tombstones").doc(businessId).set({
+        id: businessId,
+        businessId: businessId,
+        reason: isDeletedOrArchived ? (afterData.verificationStatus || "DELETED") : "UNPUBLISHED",
+        updatedAt: nowTs,
+        serverSyncedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } else if (wasPublished === false && isNowPublished && !isDeletedOrArchived) {
+      // Re-published: remove any existing tombstone
+      await db.collection("business_tombstones").doc(businessId).delete().catch(() => {});
+    }
+  });
 
 /**
  * Background Firestore Trigger: onReviewCreated

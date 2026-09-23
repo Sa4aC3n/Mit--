@@ -186,6 +186,7 @@ async function migrate(options = {}) {
   console.log(`Found ${actSnap.size} documents in /activities.`);
 
   let businessesEnrichedCount = 0;
+  let tombstonesEmittedCount = 0;
   let alreadyMigratedSkipped = 0;
   let migratedExplicitlyApprovedPublishedCount = 0;
   let migratedUnprovenPendingReviewCount = 0;
@@ -239,6 +240,15 @@ async function migrate(options = {}) {
       }
     }
 
+    const statusChangedToUnpublishedOrDeleted =
+      (!targetIsPublished && d.isPublished === true) ||
+      (!targetIsPublished && d.isPublished === undefined) ||
+      (isDeletedOrArchived && !d.isDeleted);
+
+    const freshUpdatedAt = statusChangedToUnpublishedOrDeleted
+      ? nowTs
+      : (typeof d.updatedAt === "number" ? d.updatedAt : nowTs);
+
     const needsUpdate =
       d.isPublished !== targetIsPublished ||
       d.verificationStatus !== targetVerificationStatus ||
@@ -247,7 +257,8 @@ async function migrate(options = {}) {
       !d.normalizedPhone ||
       !d.normalizedName ||
       !d.updatedAt ||
-      typeof d.updatedAt !== "number";
+      typeof d.updatedAt !== "number" ||
+      statusChangedToUnpublishedOrDeleted;
 
     if (needsUpdate) {
       businessesEnrichedCount++;
@@ -262,10 +273,23 @@ async function migrate(options = {}) {
             normalizedName: normName,
             normalizedWebsite: normWebsite,
             normalizedAddress: normAddress,
-            updatedAt: typeof d.updatedAt === "number" ? d.updatedAt : nowTs
+            updatedAt: freshUpdatedAt
           },
           { merge: true }
         );
+      }
+    }
+
+    // Emit tombstone record with fresh updatedAt if unpublished, inactive, or deleted
+    if (!targetIsPublished || isDeletedOrArchived || targetIsActive === false) {
+      tombstonesEmittedCount++;
+      if (!isDryRun) {
+        await db.collection("business_tombstones").doc(doc.id).set({
+          id: doc.id,
+          businessId: doc.id,
+          reason: isDeletedOrArchived ? "DELETED" : "UNPUBLISHED",
+          updatedAt: freshUpdatedAt
+        });
       }
     }
 
@@ -673,6 +697,7 @@ async function migrate(options = {}) {
     migratedDeletedOrArchived: migratedDeletedOrArchivedCount,
     ambiguousDuplicatePhoneReview: ambiguousDuplicatePhoneCount,
     duplicatesMerged: duplicatesMergedCount,
+    tombstonesEmitted: tombstonesEmittedCount,
     finalTotalBusinesses:
       bizSnap.size +
       migratedExplicitlyApprovedPublishedCount +

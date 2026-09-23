@@ -110,5 +110,13 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+
+    // 9. Business Tombstones & Deletion / Unpublish Change Feed
+    match /business_tombstones/{tombstoneId} {
+      // Public directory clients can read tombstones to evict unpublished/deleted records from local Room cache
+      allow read: if true;
+      // All tombstone generation is done securely by Cloud Functions, Admin SDK, or Migration
+      allow write: if false;
+    }
   }
 }
