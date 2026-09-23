@@ -41,15 +41,52 @@ class MetGhamrFirebaseMessagingService : FirebaseMessagingService() {
         const val TOPIC_NEW_BUSINESSES = "new_businesses"
 
         /**
-         * Subscribe client device to common public notification topics.
+         * Safely initialize FCM: checks Google Play Services availability first,
+         * retrieves the registration token, syncs to Firestore, and only then subscribes to topics.
+         * Prevents TOO_MANY_REGISTRATIONS and FCM registration hard failures on emulators or unauthenticated environments.
          */
-        fun subscribeToDefaultTopics() {
+        fun initializeFCM(context: Context) {
+            try {
+                val availability = com.google.android.gms.common.GoogleApiAvailability.getInstance()
+                val resultCode = availability.isGooglePlayServicesAvailable(context)
+                if (resultCode != com.google.android.gms.common.ConnectionResult.SUCCESS) {
+                    Log.i(TAG, "Google Play Services not ready for FCM registration (code: $resultCode). FCM deferred.")
+                    return
+                }
+
+                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        val token = task.result
+                        if (!token.isNullOrBlank()) {
+                            syncDeviceToken(context, token)
+                            subscribeToDefaultTopicsSafely()
+                        }
+                    } else {
+                        Log.w(TAG, "FCM token retrieval notice (non-fatal): ${task.exception?.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "FCM safe initialization notice: ${e.message}")
+            }
+        }
+
+        /**
+         * Subscribe client device to common public notification topics with individual failure listeners.
+         */
+        private fun subscribeToDefaultTopicsSafely() {
             try {
                 FirebaseMessaging.getInstance().subscribeToTopic(TOPIC_ALL_USERS)
+                    .addOnFailureListener { Log.w(TAG, "Notice subscribing to $TOPIC_ALL_USERS: ${it.message}") }
                 FirebaseMessaging.getInstance().subscribeToTopic(TOPIC_NEW_BUSINESSES)
+                    .addOnFailureListener { Log.w(TAG, "Notice subscribing to $TOPIC_NEW_BUSINESSES: ${it.message}") }
             } catch (e: Exception) {
                 Log.w(TAG, "Topic subscription warning: ${e.message}")
             }
+        }
+
+        @Deprecated("Use initializeFCM instead")
+        fun subscribeToDefaultTopics() {
+            subscribeToDefaultTopicsSafely()
         }
 
         /**

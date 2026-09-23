@@ -36,16 +36,11 @@ class MainActivity : ComponentActivity() {
         // Initialize Firebase App Check (Play Integrity in Release, Debug Provider in Debug)
         com.example.data.security.MetGhamrAppCheckManager.initialize(applicationContext)
 
-        // Initialize FCM & Sync Device Registration Token to Firestore
+        // Initialize FCM & Sync Device Registration Token to Firestore safely
         try {
-            com.example.data.fcm.MetGhamrFirebaseMessagingService.subscribeToDefaultTopics()
-            com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-                if (task.isSuccessful && !task.result.isNullOrBlank()) {
-                    com.example.data.fcm.MetGhamrFirebaseMessagingService.syncDeviceToken(applicationContext, task.result)
-                }
-            }
+            com.example.data.fcm.MetGhamrFirebaseMessagingService.initializeFCM(applicationContext)
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.w("MainActivity", "FCM init notice: ${e.message}")
         }
 
         try {
