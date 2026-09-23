@@ -33,6 +33,21 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         com.example.util.NotificationHelper.createNotificationChannels(this)
 
+        // Initialize Firebase App Check (Play Integrity in Release, Debug Provider in Debug)
+        com.example.data.security.MetGhamrAppCheckManager.initialize(applicationContext)
+
+        // Initialize FCM & Sync Device Registration Token to Firestore
+        try {
+            com.example.data.fcm.MetGhamrFirebaseMessagingService.subscribeToDefaultTopics()
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (task.isSuccessful && !task.result.isNullOrBlank()) {
+                    com.example.data.fcm.MetGhamrFirebaseMessagingService.syncDeviceToken(applicationContext, task.result)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         try {
             val database = FirebaseDatabase.getInstance()
             database.getReference("healthCheck").setValue("Met Ghamr Directory Connected")
@@ -64,18 +79,20 @@ fun MetGhamrMainApp(
     LaunchedEffect(activity?.intent) {
         val incomingIntent = activity?.intent
         val bizId = incomingIntent?.getStringExtra("businessId")
+            ?: incomingIntent?.getStringExtra(com.example.data.fcm.MetGhamrFirebaseMessagingService.EXTRA_BUSINESS_ID)
         val route = incomingIntent?.getStringExtra("route")
 
         if (!bizId.isNullOrBlank()) {
             viewModel.selectBusiness(bizId)
-            incomingIntent.removeExtra("businessId")
+            incomingIntent?.removeExtra("businessId")
+            incomingIntent?.removeExtra(com.example.data.fcm.MetGhamrFirebaseMessagingService.EXTRA_BUSINESS_ID)
         } else if (!route.isNullOrBlank()) {
             if (route == "notifications") {
                 viewModel.navigateTo(ScreenRoute.Notifications.route)
             } else if (route == "home") {
                 viewModel.navigateTo(ScreenRoute.Home.route)
             }
-            incomingIntent.removeExtra("route")
+            incomingIntent?.removeExtra("route")
         }
     }
 

@@ -454,6 +454,7 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
         _selectedBusinessId.value = id
         navigateTo(ScreenRoute.BusinessDetail.route)
         viewModelScope.launch {
+            repository.ensureBusinessCached(id)
             repository.incrementView(id)
         }
     }

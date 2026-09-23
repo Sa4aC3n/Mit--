@@ -90,9 +90,13 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 // This makes it easy to add them back in the future if needed.
 dependencies {
   implementation(platform(libs.firebase.bom))
+  implementation("com.google.firebase:firebase-auth")
   // implementation("com.google.firebase:firebase-analytics")
   implementation("com.google.firebase:firebase-database")
   implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+  implementation("androidx.credentials:credentials:1.3.0")
+  implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+  implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 
   implementation(platform(libs.androidx.compose.bom))
   // implementation(libs.accompanist.permissions)
@@ -129,6 +133,9 @@ dependencies {
   implementation(libs.androidx.credentials.play.services)
   implementation(libs.googleid)
   implementation(libs.firebase.appcheck.recaptcha)
+  implementation(libs.firebase.appcheck.playintegrity)
+  implementation(libs.firebase.appcheck.debug)
+  implementation(libs.firebase.messaging)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.logging.interceptor)

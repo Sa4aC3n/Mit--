@@ -435,6 +435,21 @@ object FirebaseBusinessSyncManager {
             return@withContext Result.success(0)
         }
 
+        val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val migrationDocRef = firestore.collection("system_migrations").document("rtdb_businesses_v1")
+
+        // 1. Cloud-Authoritative check: verify if another device already completed the migration
+        try {
+            val cloudStatusDoc = migrationDocRef.get().await()
+            if (cloudStatusDoc.exists() && cloudStatusDoc.getString("status") == "COMPLETED") {
+                Log.i(TAG, "Cloud migration metadata confirms RTDB migration is already completed.")
+                prefs.edit().putBoolean(KEY_RTDB_MIGRATED, true).apply()
+                return@withContext Result.success(0)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Notice checking cloud migration status: ${e.message}")
+        }
+
         val db = database ?: return@withContext Result.failure(IllegalStateException("Realtime Database غير متاح"))
 
         try {
@@ -455,12 +470,38 @@ object FirebaseBusinessSyncManager {
             }
 
             Log.d(TAG, "Migrating ${rtdbList.size} businesses from Realtime Database to Cloud Firestore...")
-            
+            val executorEmail = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email ?: "system_auto"
+
+            // Mark migration IN_PROGRESS in Cloud Firestore
+            try {
+                migrationDocRef.set(mapOf(
+                    "status" to "IN_PROGRESS",
+                    "startedAt" to System.currentTimeMillis(),
+                    "recordCount" to rtdbList.size,
+                    "executedBy" to executorEmail
+                ), com.google.firebase.firestore.SetOptions.merge()).await()
+            } catch (e: Exception) {
+                Log.w(TAG, "Warning recording migration IN_PROGRESS: ${e.message}")
+            }
+
             // Upload to Cloud Firestore as authoritative source
             FirebaseFirestoreSyncManager.batchUploadBusinessesToFirestore(rtdbList)
-            
+
             // Insert into Room local database cache
             dao.insertBusinesses(rtdbList)
+
+            // Mark COMPLETED in Cloud Firestore and local preferences
+            try {
+                migrationDocRef.set(mapOf(
+                    "status" to "COMPLETED",
+                    "completedAt" to System.currentTimeMillis(),
+                    "recordCount" to rtdbList.size,
+                    "executedBy" to executorEmail,
+                    "checksum" to "rec_${rtdbList.size}_${rtdbList.firstOrNull()?.id ?: "empty"}"
+                ), com.google.firebase.firestore.SetOptions.merge()).await()
+            } catch (e: Exception) {
+                Log.w(TAG, "Warning recording migration COMPLETED in cloud: ${e.message}")
+            }
 
             prefs.edit().putBoolean(KEY_RTDB_MIGRATED, true).apply()
             Log.d(TAG, "Realtime Database migration to Cloud Firestore completed successfully (${rtdbList.size} items).")

@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -302,6 +303,29 @@ class DirectoryRepository(
     fun getRecentlyAddedBusinesses(limit: Int = 6): Flow<List<BusinessEntity>> = directoryDao.getRecentlyAddedBusinesses(limit)
 
     fun getBusinessById(id: String): Flow<BusinessEntity?> = directoryDao.getBusinessById(id)
+
+    /**
+     * Resolves a business for deep linking: checks Room cache first; if missing,
+     * queries Cloud Firestore directly, caches the record into Room, and returns it.
+     */
+    suspend fun ensureBusinessCached(id: String): BusinessEntity? {
+        val cached = directoryDao.getBusinessByIdDirect(id)
+        if (cached != null) return cached
+        return try {
+            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val snap = firestore.collection("businesses").document(id).get().await()
+            if (snap.exists()) {
+                val entity = FirebaseFirestoreSyncManager.documentToBusiness(snap)
+                if (entity != null) {
+                    directoryDao.insertBusiness(entity)
+                    entity
+                } else null
+            } else null
+        } catch (e: Exception) {
+            android.util.Log.w("DirectoryRepository", "Notice resolving deep link business: ${e.message}")
+            null
+        }
+    }
 
     fun getBusinessesByCategory(categoryId: String): Flow<List<BusinessEntity>> =
         directoryDao.getBusinessesByCategory(categoryId)
