@@ -41,12 +41,39 @@ class MetGhamrFirebaseMessagingService : FirebaseMessagingService() {
         const val TOPIC_NEW_BUSINESSES = "new_businesses"
 
         /**
+         * Checks if the app is executing inside an Android emulator or testing environment.
+         */
+        private fun isEmulator(): Boolean {
+            return (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
+                    || Build.FINGERPRINT.startsWith("generic")
+                    || Build.FINGERPRINT.startsWith("unknown")
+                    || Build.HARDWARE.contains("goldfish")
+                    || Build.HARDWARE.contains("ranchu")
+                    || Build.MODEL.contains("google_sdk")
+                    || Build.MODEL.contains("Emulator")
+                    || Build.MODEL.contains("Android SDK built for x86")
+                    || Build.MANUFACTURER.contains("Genymotion")
+                    || Build.PRODUCT.contains("sdk_google")
+                    || Build.PRODUCT.contains("google_sdk")
+                    || Build.PRODUCT.contains("sdk")
+                    || Build.PRODUCT.contains("sdk_x86")
+                    || Build.PRODUCT.contains("vbox86p")
+                    || Build.PRODUCT.contains("emulator")
+                    || Build.PRODUCT.contains("simulator")
+        }
+
+        /**
          * Safely initialize FCM: checks Google Play Services availability first,
-         * retrieves the registration token, syncs to Firestore, and only then subscribes to topics.
-         * Prevents TOO_MANY_REGISTRATIONS and FCM registration hard failures on emulators or unauthenticated environments.
+         * checks emulator environment to prevent TOO_MANY_REGISTRATIONS errors,
+         * retrieves the registration token on real devices, syncs to Firestore, and subscribes to topics.
          */
         fun initializeFCM(context: Context) {
             try {
+                if (isEmulator()) {
+                    Log.i(TAG, "Streaming/Emulator environment detected. FCM background auto-registration deferred.")
+                    return
+                }
+
                 val availability = com.google.android.gms.common.GoogleApiAvailability.getInstance()
                 val resultCode = availability.isGooglePlayServicesAvailable(context)
                 if (resultCode != com.google.android.gms.common.ConnectionResult.SUCCESS) {
@@ -54,7 +81,10 @@ class MetGhamrFirebaseMessagingService : FirebaseMessagingService() {
                     return
                 }
 
-                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                val messaging = FirebaseMessaging.getInstance()
+                messaging.isAutoInitEnabled = true
+
+                messaging.token.addOnCompleteListener { task ->
                     if (task.isSuccessful) {
                         val token = task.result
                         if (!token.isNullOrBlank()) {

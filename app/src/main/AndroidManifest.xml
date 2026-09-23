@@ -47,6 +47,11 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- Disable automatic Firebase Messaging registration on startup to prevent TOO_MANY_REGISTRATIONS errors on emulators -->
+        <meta-data
+            android:name="firebase_messaging_auto_init_enabled"
+            android:value="false" />
+
         <!-- Firebase Cloud Messaging Service -->
         <service
             android:name=".data.fcm.MetGhamrFirebaseMessagingService"
