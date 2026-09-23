@@ -23,6 +23,7 @@ service cloud.firestore {
 
       // Authorized Server/Admin write permission:
       // Admins (verified via custom claim admin == true) can manage businesses directly or via Cloud Functions.
+      // Normal users are strictly forbidden from writing directly to businesses.
       allow write: if isAdmin();
     }
 
@@ -55,10 +56,10 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // 4. Official Taxonomies & Categories (Read-only for clients)
+    // 4. Official Taxonomies & Categories (Read-only for normal clients, managed by Admin)
     match /categories/{catId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isAdmin();
     }
 
     // 5. Multi-Source Provenance & Business Sources
