@@ -25,7 +25,6 @@ import com.example.ui.screens.security.OwnerSecurityGateScreen
 import com.example.ui.theme.MetGhamrDirectoryTheme
 import com.example.ui.viewmodel.DirectoryViewModel
 import com.example.ui.viewmodel.ScreenRoute
-import com.google.firebase.database.FirebaseDatabase
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,13 +40,6 @@ class MainActivity : ComponentActivity() {
             com.example.data.fcm.MetGhamrFirebaseMessagingService.initializeFCM(applicationContext)
         } catch (e: Exception) {
             android.util.Log.w("MainActivity", "FCM init notice: ${e.message}")
-        }
-
-        try {
-            val database = FirebaseDatabase.getInstance()
-            database.getReference("healthCheck").setValue("Met Ghamr Directory Connected")
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
 
         setContent {

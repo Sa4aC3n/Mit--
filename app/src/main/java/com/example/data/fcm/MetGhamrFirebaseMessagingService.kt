@@ -121,10 +121,20 @@ class MetGhamrFirebaseMessagingService : FirebaseMessagingService() {
 
         /**
          * Authoritative helper to persist device token to Cloud Firestore.
+         * In accordance with Firestore Security Rules, tokens are stored strictly under
+         * users/{uid}/devices/{deviceId} for authenticated users only.
+         * Public broadcasts for anonymous users are handled via FCM topics without direct client database writes.
          */
         fun syncDeviceToken(context: Context, token: String) {
             val db = FirebaseFirestore.getInstance()
             val auth = FirebaseAuth.getInstance()
+            val currentUser = auth.currentUser
+
+            if (currentUser == null) {
+                Log.d(TAG, "Device token refreshed for unauthenticated user; topic subscriptions active.")
+                return
+            }
+
             val deviceId = try {
                 Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "device_generic"
             } catch (e: Exception) {
@@ -138,27 +148,23 @@ class MetGhamrFirebaseMessagingService : FirebaseMessagingService() {
                 "appVersion" to BuildConfig.VERSION_NAME,
                 "versionCode" to BuildConfig.VERSION_CODE,
                 "updatedAt" to System.currentTimeMillis(),
-                "enabled" to true
+                "enabled" to true,
+                "uid" to currentUser.uid,
+                "userEmail" to (currentUser.email ?: "")
             )
 
-            // If user is authenticated, link device under users/{uid}/devices/{deviceId}
-            val currentUser = auth.currentUser
-            if (currentUser != null) {
-                devicePayload["uid"] = currentUser.uid
-                devicePayload["userEmail"] = currentUser.email ?: ""
-                db.collection("users")
-                    .document(currentUser.uid)
-                    .collection("devices")
-                    .document(deviceId)
-                    .set(devicePayload, SetOptions.merge())
-                    .addOnFailureListener { Log.w(TAG, "Failed to link device token to user doc: ${it.message}") }
-            }
-
-            // Always store in global root devices registry for broadcast & anonymous notifications
-            db.collection("devices")
+            // Strictly link device under users/{uid}/devices/{deviceId}
+            db.collection("users")
+                .document(currentUser.uid)
+                .collection("devices")
                 .document(deviceId)
                 .set(devicePayload, SetOptions.merge())
-                .addOnFailureListener { Log.w(TAG, "Failed to sync device token to Firestore: ${it.message}") }
+                .addOnSuccessListener {
+                    Log.d(TAG, "Device token securely synced under users/${currentUser.uid}/devices/$deviceId")
+                }
+                .addOnFailureListener {
+                    Log.w(TAG, "Failed to link device token to user doc: ${it.message}")
+                }
         }
 
         /**

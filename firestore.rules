@@ -118,5 +118,25 @@ service cloud.firestore {
       // Admins and Cloud Functions can create/manage deletion tombstones
       allow write: if isAdmin();
     }
+
+    // 10. User Profiles & Secure Device Tokens for FCM
+    match /users/{userId} {
+      // Authenticated users can read and manage their own user document; admins have full access
+      allow read, write: if isOwner(userId) || isAdmin();
+
+      // FCM Device Tokens for authenticated users:
+      // A user can ONLY register, update, and manage tokens for their own account
+      match /devices/{deviceId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create, update: if isOwner(userId) && request.resource.data.uid == userId;
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    // 11. Root Devices Registry (Admin and Server-Side Cloud Functions only)
+    // Direct client write is strictly forbidden to prevent unauthorized tampering or broad broadcasts
+    match /devices/{deviceId} {
+      allow read, write: if isAdmin();
+    }
   }
 }
