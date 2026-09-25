@@ -23,3 +23,32 @@ functions/node_modules
 __pycache__
 *.pyc
 .build-outputs
+
+# Large patch/evidence files
+*.patch
+docs/phase*/
+docs/phase*
+
+# APK/AAB build outputs
+*.apk
+*.aab
+
+# Keystore files
+*.jks
+*.keystore
+
+# Large PNG assets at root level
+artwork.png
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Excel tools (development only, not Android assets)
+*.xls
+*.xlsx
+
+# Build outputs
+/app/build/
+build/
+.build-outputs/
