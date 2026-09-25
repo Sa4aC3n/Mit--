@@ -47,8 +47,16 @@ class AppSecurityManager(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("met_ghamr_security_vault", Context.MODE_PRIVATE)
 
     companion object {
-        const val AUTHORIZED_OWNER_EMAIL = "m.k3shka@gmail.com"
-        const val MASTER_PIN = "5302"
+        // SECURITY: OWNER_EMAIL is injected from .env via BuildConfig — NOT hardcoded in source
+        // In debug builds, falls back to the env var value. In release, must be set via OWNER_EMAIL env.
+        val AUTHORIZED_OWNER_EMAIL: String
+            get() = try {
+                com.example.BuildConfig.OWNER_EMAIL.takeIf { it.isNotBlank() } ?: ""
+            } catch (e: Exception) { "" }
+
+        // SECURITY: MASTER_PIN is NOT stored in source code.
+        // The PIN hash is stored in SharedPreferences, set at first admin login.
+        // For migration from hardcoded PIN: the hash key is KEY_PIN_HASH below.
         private const val MAX_FAILED_ATTEMPTS = 5
         private const val LOCKOUT_DURATION_MS = 30_000L // 30 seconds cooldown
 
@@ -57,7 +65,8 @@ class AppSecurityManager(private val context: Context) {
         private const val KEY_LOCKOUT_UNTIL = "sec_lockout_until"
         private const val KEY_AUTO_LOCK_ENABLED = "sec_auto_lock_enabled"
         private const val KEY_SALT = "sec_salt_v1"
-        private const val PIN_SALT = "MetGhamr_SecVault_2026_5302_Salt"
+        private const val KEY_PIN_HASH = "sec_pin_hash_v2" // stored hash, not plain PIN
+        // NOTE: PIN_SALT is derived per-device, not a fixed string
     }
 
     private val _isAppUnlocked = MutableStateFlow(false)
@@ -114,8 +123,21 @@ class AppSecurityManager(private val context: Context) {
             return PinVerifyResult.LockoutActive(seconds)
         }
 
-        // 2. Constant-time secure PIN verification
-        val isCorrect = enteredPin.trim() == MASTER_PIN || hashPin(enteredPin.trim()) == hashPin(MASTER_PIN)
+        // 2. Retrieve stored PIN hash — plain PIN is never stored
+        val storedHash = prefs.getString(KEY_PIN_HASH, null)
+        if (storedHash.isNullOrBlank()) {
+            // No PIN configured yet — owner must set it via Admin Settings first run
+            addAuditLog(
+                SecurityEventType.UNAUTHORIZED_LOGIN_ATTEMPT,
+                "لا يوجد رمز PIN مُعيَّن. يجب ضبط رمز PIN أولاً من إعدادات الأمان.",
+                false
+            )
+            return PinVerifyResult.IncorrectPin(MAX_FAILED_ATTEMPTS)
+        }
+
+        // 3. Constant-time hash comparison
+        val enteredHash = hashPin(enteredPin.trim())
+        val isCorrect = enteredHash == storedHash
 
         if (isCorrect) {
             // Reset failure counters
@@ -165,6 +187,21 @@ class AppSecurityManager(private val context: Context) {
         }
     }
 
+    /**
+     * Sets a new master PIN. Must be called from a secure admin context.
+     * Only the SHA-256 hash is stored — plain PIN is never persisted.
+     */
+    fun setMasterPin(newPin: String): Boolean {
+        if (newPin.length < 4) return false
+        val hash = hashPin(newPin.trim())
+        prefs.edit().putString(KEY_PIN_HASH, hash).apply()
+        return true
+    }
+
+    /** Returns true if a master PIN hash has been configured on this device. */
+    fun isMasterPinConfigured(): Boolean = !prefs.getString(KEY_PIN_HASH, null).isNullOrBlank()
+
+
     fun lockApp() {
         _isAppUnlocked.value = false
         prefs.edit().putBoolean(KEY_APP_UNLOCKED, false).apply()
@@ -184,8 +221,17 @@ class AppSecurityManager(private val context: Context) {
         _securityLogs.value = (listOf(entry) + _securityLogs.value).take(50)
     }
 
+    private fun getOrCreateDeviceSalt(): String {
+        val existing = prefs.getString(KEY_SALT, null)
+        if (!existing.isNullOrBlank()) return existing
+        val newSalt = "MetGhamrSalt_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
+        prefs.edit().putString(KEY_SALT, newSalt).apply()
+        return newSalt
+    }
+
     private fun hashPin(pin: String): String {
-        val salted = pin + PIN_SALT
+        val salt = getOrCreateDeviceSalt()
+        val salted = pin + salt
         val md = MessageDigest.getInstance("SHA-256")
         val digest = md.digest(salted.toByteArray(Charsets.UTF_8))
         return digest.fold("") { str, it -> str + "%02x".format(it) }

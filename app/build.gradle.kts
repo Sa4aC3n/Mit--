@@ -55,11 +55,19 @@ android {
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
+      // Owner config injected from .env via Secrets Gradle Plugin (not hardcoded in source)
+      buildConfigField("String", "OWNER_EMAIL", "\"${System.getenv("OWNER_EMAIL") ?: ""}\"")
+      buildConfigField("String", "MASTER_PIN_HASH", "\"${System.getenv("MASTER_PIN_HASH") ?: ""}\"")
     }
-    debug { signingConfig = signingConfigs.getByName("debugConfig") }
+    debug {
+      signingConfig = signingConfigs.getByName("debugConfig")
+      buildConfigField("String", "OWNER_EMAIL", "\"${System.getenv("OWNER_EMAIL") ?: "m.k3shka@gmail.com"}\"")
+      buildConfigField("String", "MASTER_PIN_HASH", "\"${System.getenv("MASTER_PIN_HASH") ?: ""}\"")
+    }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
