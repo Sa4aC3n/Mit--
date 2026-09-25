@@ -19,8 +19,8 @@ data class BusinessEntity(
     val area: String, // e.g. شارع الحرية، صهرجت الكبرى، أتميدة، كوم النور، دنديط
     val facebookUrl: String? = null,
     val websiteUrl: String? = null,
-    val latitude: Double = 30.7183,
-    val longitude: Double = 31.2568,
+    val latitude: Double = 0.0,   // 0.0 = no coordinates available; map excludes these
+    val longitude: Double = 0.0,  // Must be set from real Firestore data to show on map
     val workingHours: String,
     val isOpenNow: Boolean = true,
     val isVerified: Boolean = false,

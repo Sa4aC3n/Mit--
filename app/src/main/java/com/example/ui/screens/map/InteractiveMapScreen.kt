@@ -590,11 +590,18 @@ fun MetGhamrMapCanvas(
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
 
-        // 1. Precalculate normalized coordinates once when business list changes
+        // 1. Precalculate normalized coordinates once when business list changes.
+        //    IMPORTANT: Businesses with no real coordinates (0.0 or both null/zero)
+        //    are EXCLUDED from the map to avoid placing incorrect pins at city center.
+        //    Their address text remains visible in the list view.
         val projectedMarkers = remember(businesses) {
-            businesses.map { b ->
-                val lat = if (b.latitude != 0.0) b.latitude else 30.7183
-                val lng = if (b.longitude != 0.0) b.longitude else 31.2568
+            businesses.mapNotNull { b ->
+                // Validate coordinates: both must be non-zero to be considered real
+                val hasCoords = (b.latitude != 0.0 && b.longitude != 0.0)
+                if (!hasCoords) return@mapNotNull null
+
+                val lat = b.latitude
+                val lng = b.longitude
                 val nx = ((lng - minLng) / (maxLng - minLng)).toFloat().coerceIn(0.02f, 0.98f)
                 val ny = (1f - ((lat - minLat) / (maxLat - minLat)).toFloat()).coerceIn(0.02f, 0.98f)
                 val pinColor = when (b.categoryId) {
