@@ -373,8 +373,10 @@ object FirebaseFirestoreSyncManager {
             val imageUrl = findString("imageUrl", "image", "img", "photo", "logo", "صورة", "الصورة", "شعار", "لوجو")
 
             // GeoPoint & coordinates
-            var lat = findDouble(30.7183, "latitude", "lat", "خط_العرض", "خط العرض")
-            var lng = findDouble(31.2568, "longitude", "lng", "lon", "خط_الطول", "خط الطول")
+            // IMPORTANT: Use 0.0 as default (not hardcoded city center) so missing coordinates
+            // can be correctly identified and excluded from map markers.
+            var lat = findDouble(0.0, "latitude", "lat", "خط_العرض", "خط العرض")
+            var lng = findDouble(0.0, "longitude", "lng", "lon", "خط_الطول", "خط الطول")
             for (v in data.values) {
                 if (v is GeoPoint) {
                     lat = v.latitude
