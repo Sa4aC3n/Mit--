@@ -30,7 +30,7 @@ class AuthSessionManager(context: Context) {
         accessToken: String? = null,
         refreshToken: String? = null
     ) {
-        prefs.edit()
+        val editor = prefs.edit()
             .putString(KEY_AUTH_STATE, AuthState.AUTHENTICATED.name)
             .putString(KEY_USER_ID, user.id)
             .putString(KEY_USER_EMAIL, user.email)
@@ -38,11 +38,20 @@ class AuthSessionManager(context: Context) {
             .putString(KEY_USER_AVATAR, user.photoUrl ?: "")
             .putString(KEY_USER_PROVIDER, user.providerType.name)
             .putString(KEY_USER_PHONE, user.phone ?: "")
-            .putString(KEY_USER_ROLE, if (user.email.trim().equals("m.k3shka@gmail.com", ignoreCase = true)) "SUPER_ADMIN" else user.role)
-            .putString(KEY_ACCESS_TOKEN, accessToken ?: "mock_acc_tok_${user.id}_${System.currentTimeMillis()}")
-            .putString(KEY_REFRESH_TOKEN, refreshToken ?: "mock_ref_tok_${user.id}_${System.currentTimeMillis()}")
+            .putString(KEY_USER_ROLE, user.role)
             .putLong(KEY_LAST_LOGIN, System.currentTimeMillis())
-            .apply()
+
+        if (accessToken != null) {
+            editor.putString(KEY_ACCESS_TOKEN, accessToken)
+        } else {
+            editor.remove(KEY_ACCESS_TOKEN)
+        }
+        if (refreshToken != null) {
+            editor.putString(KEY_REFRESH_TOKEN, refreshToken)
+        } else {
+            editor.remove(KEY_REFRESH_TOKEN)
+        }
+        editor.apply()
     }
 
     fun getUserSession(): UserAccount? {
@@ -52,12 +61,7 @@ class AuthSessionManager(context: Context) {
         val avatar = prefs.getString(KEY_USER_AVATAR, "")
         val providerStr = prefs.getString(KEY_USER_PROVIDER, AuthProvider.GOOGLE.name) ?: AuthProvider.GOOGLE.name
         val phone = prefs.getString(KEY_USER_PHONE, null)
-        val roleFromPrefs = prefs.getString(KEY_USER_ROLE, null)
-        val resolvedRole = if (email.trim().equals("m.k3shka@gmail.com", ignoreCase = true)) {
-            "SUPER_ADMIN"
-        } else {
-            roleFromPrefs ?: "USER"
-        }
+        val resolvedRole = prefs.getString(KEY_USER_ROLE, "USER") ?: "USER"
         val lastLogin = prefs.getLong(KEY_LAST_LOGIN, System.currentTimeMillis())
 
         val provider = try {

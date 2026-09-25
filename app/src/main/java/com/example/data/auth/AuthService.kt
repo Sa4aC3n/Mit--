@@ -34,6 +34,16 @@ class AuthService(private val context: Context) {
 
     private val credentialManager = CredentialManager.create(context)
 
+    private suspend fun resolveUserRole(firebaseUser: com.google.firebase.auth.FirebaseUser): String {
+        return try {
+            val tokenResult = firebaseUser.getIdToken(true).await()
+            val isAdmin = tokenResult.claims["admin"] == true
+            if (isAdmin) "SUPER_ADMIN" else "USER"
+        } catch (e: Exception) {
+            "USER"
+        }
+    }
+
     fun getPersistedUserSession(): UserAccount? {
         val user = sessionManager.getUserSession()
         if (user != null) {
@@ -49,8 +59,12 @@ class AuthService(private val context: Context) {
                 } catch (e: Exception) {
                     // Ignore
                 }
+                sessionManager.clearSession()
                 return null
             }
+
+            val role = kotlinx.coroutines.runBlocking { resolveUserRole(fbUser) }
+            val token = try { kotlinx.coroutines.runBlocking { fbUser.getIdToken(false).await().token } } catch (e: Exception) { null }
 
             val account = UserAccount(
                 id = fbUser.uid,
@@ -59,9 +73,10 @@ class AuthService(private val context: Context) {
                 email = fbUser.email ?: "user@metghamr.com",
                 displayName = fbUser.displayName?.ifBlank { null } ?: fbUser.email?.substringBefore("@") ?: "مستخدم دليل ميت غمر",
                 photoUrl = fbUser.photoUrl?.toString(),
+                role = role,
                 lastLoginAt = System.currentTimeMillis()
             )
-            sessionManager.saveUserSession(account)
+            sessionManager.saveUserSession(account, accessToken = token)
             return account
         }
         return null
@@ -165,6 +180,9 @@ class AuthService(private val context: Context) {
             }
 
             // Email IS verified -> proceed to authenticate
+            val role = resolveUserRole(user)
+            val token = try { user.getIdToken(false).await().token } catch (e: Exception) { null }
+
             val account = UserAccount(
                 id = user.uid,
                 providerId = user.uid,
@@ -172,10 +190,11 @@ class AuthService(private val context: Context) {
                 email = user.email ?: cleanEmail,
                 displayName = user.displayName?.ifBlank { null } ?: cleanEmail.substringBefore("@"),
                 photoUrl = user.photoUrl?.toString(),
+                role = role,
                 lastLoginAt = System.currentTimeMillis()
             )
 
-            sessionManager.saveUserSession(account)
+            sessionManager.saveUserSession(account, accessToken = token)
             EmailAuthResult.Success(account)
         } catch (e: FirebaseAuthInvalidUserException) {
             sessionManager.saveAuthState(AuthState.ERROR)
@@ -275,15 +294,20 @@ class AuthService(private val context: Context) {
                 val fbUser = authResult.user
 
                 if (fbUser != null) {
-                    return UserAccount(
+                    val role = resolveUserRole(fbUser)
+                    val token = try { fbUser.getIdToken(false).await().token } catch (e: Exception) { null }
+                    val account = UserAccount(
                         id = fbUser.uid,
                         providerId = fbUser.uid,
                         providerType = AuthProvider.GOOGLE,
                         email = fbUser.email ?: googleIdTokenCredential.id,
                         displayName = fbUser.displayName ?: googleIdTokenCredential.displayName ?: "مستخدم جوجل",
                         photoUrl = fbUser.photoUrl?.toString(),
+                        role = role,
                         lastLoginAt = System.currentTimeMillis()
                     )
+                    sessionManager.saveUserSession(account, accessToken = token)
+                    return account
                 }
             } catch (e: Exception) {
                 // fall through to canonical user creation
@@ -294,9 +318,10 @@ class AuthService(private val context: Context) {
             id = "usr_google_" + UUID.randomUUID().toString().take(8),
             providerId = "google_p_" + UUID.randomUUID().toString().take(8),
             providerType = AuthProvider.GOOGLE,
-            email = "m.k3shka@gmail.com",
-            displayName = "م. محمد كشك",
-            photoUrl = "https://lh3.googleusercontent.com/a/default-user",
+            email = "user@metghamr.com",
+            displayName = "مستخدم جوجل",
+            photoUrl = null,
+            role = "USER",
             lastLoginAt = System.currentTimeMillis()
         )
     }

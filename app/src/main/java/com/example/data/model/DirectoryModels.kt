@@ -183,14 +183,14 @@ data class UserAccount(
     val lastName: String = "",
     val photoUrl: String? = null,
     val phone: String? = null,
-    val role: String = if (email.trim().equals("m.k3shka@gmail.com", ignoreCase = true)) "SUPER_ADMIN" else "USER",
+    val role: String = "USER",
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val lastLoginAt: Long = System.currentTimeMillis(),
     val isActive: Boolean = true
 ) {
     val isSuperAdmin: Boolean
-        get() = role.uppercase() == "SUPER_ADMIN" || email.trim().equals("m.k3shka@gmail.com", ignoreCase = true)
+        get() = role.uppercase() == "SUPER_ADMIN" || role.uppercase() == "ADMIN"
 
     // Backward compatibility helper properties
     val name: String get() = displayName

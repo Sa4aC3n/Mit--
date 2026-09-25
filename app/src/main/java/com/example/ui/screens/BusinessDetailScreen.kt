@@ -73,7 +73,7 @@ fun BusinessDetailScreen(
     var selectedStarRating by remember { mutableFloatStateOf(5.0f) }
     var reviewCommentText by remember { mutableStateOf("") }
 
-    val isSuperAdmin = currentUser?.isSuperAdmin == true || currentUser?.email?.trim()?.equals("m.k3shka@gmail.com", ignoreCase = true) == true
+    val isSuperAdmin = currentUser?.isSuperAdmin == true
 
     if (business == null) {
         Box(

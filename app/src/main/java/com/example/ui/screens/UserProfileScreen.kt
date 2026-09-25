@@ -152,7 +152,7 @@ fun UserProfileScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             ProviderBadge(provider = user.providerType)
-                            if (user.isSuperAdmin || isOwnerVerified || user.email.trim().equals("m.k3shka@gmail.com", ignoreCase = true)) {
+                            if (user.isSuperAdmin || isOwnerVerified) {
                                 SuperAdminBadge()
                             }
                         }
@@ -172,7 +172,7 @@ fun UserProfileScreen(
                 }
 
                 // Super Admin Exclusive Management Panel Banner
-                if (user.isSuperAdmin || isOwnerVerified || user.email.trim().equals("m.k3shka@gmail.com", ignoreCase = true)) {
+                if (user.isSuperAdmin || isOwnerVerified) {
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
@@ -254,7 +254,7 @@ fun UserProfileScreen(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
 
-                        if (isOwnerVerified || user.isSuperAdmin || user.email.trim().equals("m.k3shka@gmail.com", ignoreCase = true)) {
+                        if (isOwnerVerified || user.isSuperAdmin) {
                             ProfileMenuItem(
                                 icon = Icons.Default.AdminPanelSettings,
                                 title = "لوحة تحكم مدير النظام الأعلى",

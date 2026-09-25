@@ -55,30 +55,25 @@ class BackendApiService {
         // If user is authenticated in Firebase, verify their ID token / custom claims
         if (fbUser != null && requiredRole == "ADMIN") {
             try {
-                val tokenResult = fbUser.getIdToken(false).await()
+                val tokenResult = fbUser.getIdToken(true).await()
                 val claims = tokenResult.claims
                 val isAdminClaim = claims["admin"] == true
-                val isOwnerEmail = fbUser.email?.trim()?.equals("m.k3shka@gmail.com", ignoreCase = true) == true
 
-                if (!isAdminClaim && !isOwnerEmail) {
+                if (!isAdminClaim) {
                     return@withContext BackendResponse(
                         success = false,
                         data = false,
-                        message = "صلاحيات غير كافية: العملية تتطلب صلاحيات مشرف النظام المعتمدة عبر الخادم (403 Forbidden)",
+                        message = "صلاحيات غير كافية: العملية تتطلب صلاحيات مشرف النظام المعتمدة عبر خادم المصادقة (403 Forbidden)",
                         errorCode = 403
                     )
                 }
             } catch (e: Exception) {
-                // Check if currentUser email is owner email as fallback
-                val isOwnerEmail = fbUser.email?.trim()?.equals("m.k3shka@gmail.com", ignoreCase = true) == true
-                if (!isOwnerEmail) {
-                    return@withContext BackendResponse(
-                        success = false,
-                        data = false,
-                        message = "تعذر التحقق من صلاحيات المشرف عبر خادم المصادقة: ${e.localizedMessage}",
-                        errorCode = 403
-                    )
-                }
+                return@withContext BackendResponse(
+                    success = false,
+                    data = false,
+                    message = "تعذر التحقق من صلاحيات المشرف عبر خادم المصادقة: ${e.localizedMessage}",
+                    errorCode = 403
+                )
             }
         }
 
@@ -364,9 +359,6 @@ class BackendApiService {
             null
         }
 
-        val effectiveEmail = userEmail ?: fbUser?.email
-        val isSuperAdmin = effectiveEmail?.trim()?.equals("m.k3shka@gmail.com", ignoreCase = true) == true
-
         if (fbUser == null && authToken.isNullOrBlank()) {
             return@withContext BackendResponse(
                 success = false,
@@ -376,11 +368,22 @@ class BackendApiService {
             )
         }
 
+        val isSuperAdmin = try {
+            if (fbUser != null) {
+                val tokenResult = fbUser.getIdToken(true).await()
+                tokenResult.claims["admin"] == true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+
         if (!isSuperAdmin) {
             return@withContext BackendResponse(
                 success = false,
                 data = false,
-                message = "صلاحيات غير كافية: هذه العملية حساسة ومقتصرة حصرياً على مدير النظام الأعلى m.k3shka@gmail.com (403 Forbidden)",
+                message = "صلاحيات غير كافية: هذه العملية حساسة ومقتصرة حصرياً على مدير النظام الأعلى المعتمد بـ Custom Claim (403 Forbidden)",
                 errorCode = 403
             )
         }
