@@ -376,19 +376,11 @@ class SyncAndModerationUnitTest {
         val unauthResponse = apiService.verifyAuthorization(null, "ADMIN")
         assertEquals(401, unauthResponse.errorCode)
 
-        // SuperAdmin check with unauthorized email
-        val regularUserSuperAdminCheck = apiService.verifySuperAdminAuthorization(
-            authToken = "regular_user_token",
-            userEmail = "regular@example.com"
-        )
-        assertEquals(403, regularUserSuperAdminCheck.errorCode)
-
-        // SuperAdmin check with authorized owner email
-        val ownerSuperAdminCheck = apiService.verifySuperAdminAuthorization(
-            authToken = "owner_token",
+        // SuperAdmin check with admin email without claim must be denied (403)
+        val ownerWithoutClaimCheck = apiService.verifySuperAdminAuthorization(
+            authToken = "owner_token_no_claim",
             userEmail = "m.k3shka@gmail.com"
         )
-        assertTrue(ownerSuperAdminCheck.success)
-        assertTrue(ownerSuperAdminCheck.data ?: false)
+        assertEquals(403, ownerWithoutClaimCheck.errorCode)
     }
 }

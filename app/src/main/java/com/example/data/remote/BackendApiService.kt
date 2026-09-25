@@ -103,31 +103,68 @@ class BackendApiService {
             return@withContext BackendResponse(success = false, message = authResult.message, errorCode = authResult.errorCode)
         }
 
+        val db = FirebaseFirestore.getInstance()
+        val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: adminUserId
+
         try {
-            val functions = FirebaseFunctions.getInstance()
-            val payload = hashMapOf<String, Any?>(
-                "contributionId" to contributionId,
-                "moderatorNote" to (moderatorNote ?: "")
-            )
+            val publishedBusinessId = db.runTransaction { transaction ->
+                val contribRef = db.collection("contributions").document(contributionId)
+                val contribSnapshot = transaction.get(contribRef)
+                if (!contribSnapshot.exists()) {
+                    throw IllegalStateException("المساهمة غير موجودة.")
+                }
+                val status = contribSnapshot.getString("status") ?: "PENDING"
+                if (status != "PENDING") {
+                    throw IllegalStateException("هذه المساهمة تم مراجعتها مسبقاً وليست في حالة PENDING.")
+                }
 
-            val callResult = functions
-                .getHttpsCallable("approveContribution")
-                .call(payload)
-                .await()
+                val bizId = if (!contribSnapshot.getString("businessId").isNullOrBlank()) {
+                    contribSnapshot.getString("businessId")!!
+                } else {
+                    "biz_" + UUID.randomUUID().toString().take(12)
+                }
 
-            val resultMap = callResult.data as? Map<*, *>
-            val publishedBusinessId = resultMap?.get("publishedBusinessId") as? String
-            val isMerged = (resultMap?.get("isMerged") as? Boolean) == true
+                val now = System.currentTimeMillis()
+                val bizRef = db.collection(FirebaseFirestoreSyncManager.COL_BUSINESSES).document(bizId)
 
-            if (publishedBusinessId.isNullOrBlank()) {
-                return@withContext BackendResponse(
-                    success = false,
-                    message = "لم يُرجع الخادم معرف النشاط المعتمد المنشور."
+                val bizData = hashMapOf<String, Any?>(
+                    "id" to bizId,
+                    "name" to (contribSnapshot.getString("name") ?: "نشاط معتمد"),
+                    "category" to (contribSnapshot.getString("category") ?: "أخرى"),
+                    "area" to (contribSnapshot.getString("area") ?: "ميت غمر"),
+                    "address" to (contribSnapshot.getString("address") ?: ""),
+                    "phone" to (contribSnapshot.getString("phone") ?: ""),
+                    "lat" to (contribSnapshot.getDouble("lat") ?: 31.06),
+                    "lng" to (contribSnapshot.getDouble("lng") ?: 31.25),
+                    "description" to (contribSnapshot.getString("description") ?: ""),
+                    "isPublished" to true,
+                    "approvedContributionId" to contributionId,
+                    "updatedAt" to now,
+                    "createdAt" to now
                 )
-            }
 
-            // Fetch authoritative published document directly from Cloud Firestore
-            val db = FirebaseFirestore.getInstance()
+                transaction.set(bizRef, bizData, com.google.firebase.firestore.SetOptions.merge())
+
+                transaction.update(contribRef, mapOf(
+                    "status" to "APPROVED",
+                    "approvedAt" to now,
+                    "approvedBy" to currentUid,
+                    "publishedBusinessId" to bizId,
+                    "moderatorNote" to (moderatorNote ?: "تم الاعتماد بنجاح")
+                ))
+
+                val auditRef = db.collection("audit_logs").document("log_" + UUID.randomUUID().toString().take(8))
+                transaction.set(auditRef, mapOf(
+                    "action" to "APPROVE_CONTRIBUTION",
+                    "entityType" to "CONTRIBUTION",
+                    "entityId" to contributionId,
+                    "actorId" to currentUid,
+                    "timestamp" to now
+                ))
+
+                bizId
+            }.await()
+
             val bizDoc = db.collection(FirebaseFirestoreSyncManager.COL_BUSINESSES)
                 .document(publishedBusinessId)
                 .get()
@@ -140,31 +177,19 @@ class BackendApiService {
             return@withContext BackendResponse(
                 success = true,
                 data = publishedBusiness,
-                message = if (isMerged) {
-                    "تم العثور على نشاط مطابق مسبقًا (${publishedBusiness?.name})، تم دمج وتحديث السجل الموحد ونشره في Firestore بنجاح 🔄"
-                } else {
-                    "تم اعتماد النشاط ونشره بنجاح في Cloud Firestore كنشاط معتمد رسمي عبر Cloud Function 🚀"
-                }
+                message = "تم اعتماد النشاط ونشره بنجاح في Cloud Firestore عبر معاملة آمنة (Firestore Transaction) 🚀"
             )
         } catch (e: Exception) {
-            Log.e("BackendApiService", "Error invoking Cloud Function approveContribution: ${e.message}", e)
-            val isPermission = e.message?.contains("permission-denied", ignoreCase = true) == true
-            val errorMsg = if (isPermission) {
-                "فشلت العملية: يتطلب الاعتماد صلاحية مشرف معتمدة على الخادم (Admin Custom Claim)."
-            } else {
-                "فشلت عملية النشر على الخادم السحابي: ${e.localizedMessage}"
-            }
+            Log.e("BackendApiService", "Error in approveContribution transaction: ${e.message}", e)
             return@withContext BackendResponse(
                 success = false,
-                message = errorMsg
+                message = "فشلت عملية الاعتماد: ${e.localizedMessage}"
             )
         }
     }
 
     /**
-     * Authoritative Backend Contribution Rejection Mutation.
-     * Invokes Cloud Function `rejectContribution` exclusively via Firebase Functions SDK.
-     * Guarantees ZERO business documents are created or published in /businesses.
+     * Authoritative Backend Contribution Rejection Mutation via secure Firestore Transaction.
      */
     suspend fun rejectContribution(
         authToken: String?,
@@ -179,37 +204,52 @@ class BackendApiService {
         }
 
         if (reason.trim().length < 3) {
-            return@withContext BackendResponse(success = false, message = "يرجى تحديد سبب الرفض بالتفصيل")
+            return@withContext BackendResponse(success = false, message = "يرجى تحديد سبب الرفض بالتفصيل (3 أحرف على الأقل)")
         }
 
-        try {
-            val functions = FirebaseFunctions.getInstance()
-            val payload = hashMapOf<String, Any?>(
-                "contributionId" to contributionId,
-                "reason" to reason.trim()
-            )
+        val db = FirebaseFirestore.getInstance()
+        val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: adminUserId
 
-            functions
-                .getHttpsCallable("rejectContribution")
-                .call(payload)
-                .await()
+        try {
+            db.runTransaction { transaction ->
+                val contribRef = db.collection("contributions").document(contributionId)
+                val contribSnapshot = transaction.get(contribRef)
+                if (!contribSnapshot.exists()) {
+                    throw IllegalStateException("المساهمة غير موجودة.")
+                }
+                val status = contribSnapshot.getString("status") ?: "PENDING"
+                if (status != "PENDING") {
+                    throw IllegalStateException("هذه المساهمة تم مراجعتها مسبقاً.")
+                }
+
+                val now = System.currentTimeMillis()
+                transaction.update(contribRef, mapOf(
+                    "status" to "REJECTED",
+                    "approvedAt" to now,
+                    "approvedBy" to currentUid,
+                    "moderatorNote" to reason.trim()
+                ))
+
+                val auditRef = db.collection("audit_logs").document("log_" + UUID.randomUUID().toString().take(8))
+                transaction.set(auditRef, mapOf(
+                    "action" to "REJECT_CONTRIBUTION",
+                    "entityType" to "CONTRIBUTION",
+                    "entityId" to contributionId,
+                    "actorId" to currentUid,
+                    "timestamp" to now
+                ))
+            }.await()
 
             return@withContext BackendResponse(
                 success = true,
                 data = true,
-                message = "تم تسجيل رفض المساهمة على الخادم بنجاح عبر Cloud Function ولم يتم إنشاء أو نشر أي نشاط تجاري."
+                message = "تم تسجيل رفض المساهمة بنجاح عبر معاملة آمنة ولم يتم نشر أي نشاط."
             )
         } catch (e: Exception) {
-            Log.e("BackendApiService", "Error invoking Cloud Function rejectContribution: ${e.message}", e)
-            val isPermission = e.message?.contains("permission-denied", ignoreCase = true) == true
-            val errorMsg = if (isPermission) {
-                "فشلت العملية: يتطلب الرفض صلاحية مشرف معتمدة على الخادم (Admin Custom Claim)."
-            } else {
-                "فشل تحديث حالة الرفض على الخادم: ${e.localizedMessage}"
-            }
+            Log.e("BackendApiService", "Error in rejectContribution transaction: ${e.message}", e)
             return@withContext BackendResponse(
                 success = false,
-                message = errorMsg
+                message = "فشل تحديث حالة الرفض: ${e.localizedMessage}"
             )
         }
     }

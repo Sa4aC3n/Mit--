@@ -51,9 +51,24 @@ service cloud.firestore {
       // Users can cancel/delete their own pending request before review
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid && resource.data.status == 'PENDING';
 
-      // Direct client updates (moderation, status changes) are forbidden.
-      // All moderation updates MUST go through Cloud Functions (approveContribution / rejectContribution).
-      allow update: if false;
+      // Admin can approve or reject pending contributions via secure Firestore Transaction
+      allow update: if isAdmin() &&
+        resource.data.status == 'PENDING' &&
+        (
+          // Case 1: Approval
+          (request.resource.data.status == 'APPROVED' &&
+           request.resource.data.approvedAt is number &&
+           request.resource.data.approvedBy == request.auth.uid &&
+           request.resource.data.publishedBusinessId is string &&
+           request.resource.data.publishedBusinessId.size() > 0 &&
+           getAfter(/databases/$(database)/documents/businesses/$(request.resource.data.publishedBusinessId)).data.isPublished == true) ||
+          // Case 2: Rejection
+          (request.resource.data.status == 'REJECTED' &&
+           request.resource.data.approvedAt is number &&
+           request.resource.data.approvedBy == request.auth.uid &&
+           request.resource.data.moderatorNote is string &&
+           request.resource.data.moderatorNote.size() >= 3)
+        );
     }
 
     // 4. Official Taxonomies & Categories (Read-only for normal clients, managed by Admin)
@@ -99,10 +114,11 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
-    // 7. Audit Logs & System Governance (Admin read only, written via Cloud Functions)
+    // 7. Audit Logs & System Governance (Admin read/create via secure transaction)
     match /audit_logs/{logId} {
       allow read: if isAdmin();
-      allow write: if false;
+      allow create: if isAdmin() && request.resource.data.actorId == request.auth.uid;
+      allow update, delete: if false;
     }
 
     // 8. System Configurations & App Metadata (Public read, admin write via Admin SDK)
