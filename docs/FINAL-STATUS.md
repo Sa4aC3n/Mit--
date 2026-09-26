@@ -38,10 +38,19 @@
 |------|--------|
 | `.gitignore` | Added: `*.patch`, `docs/phase*/`, `*.apk`, `*.aab`, `*.jks`, `*.xls`, `*.xlsx`, `/app/build/` |
 | `.env.example` | Added `OWNER_EMAIL` and `MASTER_PIN_HASH` documentation |
-| `app/build.gradle.kts` | Enabled `isMinifyEnabled = true`, `isShrinkResources = true`; added BuildConfig owner fields |
+| `app/build.gradle.kts` | Enabled `isMinifyEnabled = true`, `isShrinkResources = true`; added BuildConfig owner fields; removed `firebase-functions` and `firebase-storage` unused deps |
 | `app/src/main/java/com/example/data/model/DirectoryModels.kt` | Default `latitude`/`longitude` changed from hardcoded Mit Ghamr coords to `0.0` |
 | `app/src/main/java/com/example/ui/screens/map/InteractiveMapScreen.kt` | Map now **excludes** businesses with coordinates `0.0` — no more incorrect pins at city center |
 | `app/src/main/java/com/example/data/security/AppSecurityManager.kt` | **CRITICAL FIX**: Removed hardcoded `MASTER_PIN = "5302"` and `AUTHORIZED_OWNER_EMAIL`; now uses SharedPreferences hash + BuildConfig |
+| `app/src/main/java/com/example/data/firebase/FirebaseFirestoreSyncManager.kt` | **CRITICAL FIX**: `COL_AUDIT_LOGS` changed from `"auditLogs"` to `"audit_logs"` to match `firestore.rules`; coordinate defaults changed from hardcoded city coords to `0.0` |
+| `app/src/main/java/com/example/data/remote/BackendApiService.kt` | Removed unused `FirebaseFunctions` import; removed hardcoded `adminEmail = "m.k3shka@gmail.com"` default |
+| `firestore.rules` | **CRITICAL FIX**: Added `status == 'PENDING'` enforcement on review creation; blocked `approvedAt`, `approvedBy`, `ownerReply` fields on create |
+| `firebase.json` | Removed Cloud Functions emulator (not used on Spark plan); enabled emulator UI on port 4000 |
+| `app/proguard-rules.pro` | Replaced minimal placeholder with comprehensive rules for Firebase, Room, Moshi, Coil, Retrofit, Compose |
+| `test/firestore-security-tests.test.js` | **NEW**: 40+ real security tests using `@firebase/rules-unit-testing` v3 (no Cloud Functions) |
+| `test/package.json` | **NEW**: Test dependencies for Jest + @firebase/rules-unit-testing |
+| `README.md` | **NEW**: Project overview, tech stack, setup instructions |
+| `tools/categories/README.md` | **NEW**: Documents that Excel files are dev-only seed data |
 
 ---
 
