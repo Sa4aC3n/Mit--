@@ -136,42 +136,63 @@
 
 ## 7. Test Execution Results
 
-### Firebase Emulator Tests
-| Status | Details |
-|--------|---------|
-| Tests Written | ✅ `test/firestore-security-tests.test.js` created |
-| Tests Executed | See subagent Stage D report |
-| Firebase CLI | Check: `firebase --version` |
+### Firebase Emulator Security Tests
+
+| Test Group | Tests Written | Status |
+|-----------|--------------|--------|
+| `/businesses` — read/write access | 5 tests | NOT EXECUTED |
+| `/contributions` — user vs admin | 9 tests | NOT EXECUTED |
+| `/reviews` — status enforcement | 8 tests | NOT EXECUTED |
+| `/audit_logs` — immutability | 8 tests | NOT EXECUTED |
+| `/users` — profile isolation | 3 tests | NOT EXECUTED |
+| `/categories` — public read / admin write | 3 tests | NOT EXECUTED |
+| Security attack scenarios | 5 tests | NOT EXECUTED |
+| **TOTAL** | **41 tests** | **NOT EXECUTED** |
+
+**Reason tests NOT EXECUTED:** Firebase Emulator requires Java runtime. Java is not installed in this environment.
+
+**To run the tests yourself:**
+```bash
+# 1. Install Java 11+ (https://adoptium.net/)
+# 2. Install Firebase CLI: npm install -g firebase-tools
+# 3. cd test && npm install
+# 4. firebase emulators:start --only firestore --project dalil-mit3mr
+# 5. npm test
+```
+
+**Firebase CLI version:** 15.30.2 ✅  
+**Node.js version:** 24.20.0 ✅  
+**Test dependencies installed:** ✅ (`test/node_modules` exists)  
+**Java runtime:** ❌ NOT INSTALLED — required for emulator
 
 ### Android Build
+
 | Status | Details |
 |--------|---------|
-| Gradle Debug Build | NOT EXECUTED (requires JDK + Android SDK) |
+| Gradle Debug Build | NOT EXECUTED (requires JDK + Android SDK in CI or Android Studio) |
 | Gradle Release Build | NOT EXECUTED |
-| APK Size (before) | NOT MEASURED |
-| APK Size (after R8) | NOT MEASURED — expected ~30-40% reduction |
+| APK Size (before R8) | NOT MEASURED |
+| APK Size (after R8) | NOT MEASURED — expected 30-40% reduction based on library count |
+| R8 Configured | ✅ Enabled with `isMinifyEnabled = true`, `isShrinkResources = true` |
+| ProGuard Rules | ✅ Comprehensive rules written for Firebase, Room, Moshi, Coil, Retrofit |
 
 ---
 
 ## 8. Open Items (Require Manual Action)
 
 ### HIGH Priority
-1. **PIN Setup Migration**: Existing users with `MASTER_PIN = "5302"` will find no PIN configured (old hardcoded comparison removed). **Action Required**: Admin must set new PIN via Admin Settings screen on first launch after update. The `setMasterPin()` method is available in `AppSecurityManager`.
+1. **Firebase Emulator Tests**: Install Java 11+ and run `npm test` in `test/` directory. 41 tests ready. None have been executed — they MUST be run and pass before declaring the security layer verified.
 
-2. **`app_icon_foreground.png` (1.68 MB)**: Still in drawable. Referenced by `ic_launcher_foreground.xml`. Must be converted to WebP using Android Studio's "Convert to WebP" tool.
+2. **Android Build Verification**: Run `./gradlew assembleDebug` in Android Studio or CI with Android SDK. Required to confirm no compile errors from: `hashPin()` fix, companion object brace fix, `AppSecurityManager` changes.
 
-3. **Firebase Realtime Database**: `FirebaseBusinessSyncManager` and `FirebaseRatingManager` still import `firebase-database`. If they are not called by `DirectoryRepository`, remove them and remove the `implementation("com.google.firebase:firebase-database")` dependency from `build.gradle.kts`.
+3. **PIN Setup Migration**: Admin must set new PIN via Admin Settings screen on first launch (old hardcoded `MASTER_PIN = "5302"` removed). `setMasterPin()` method available in `AppSecurityManager`.
 
-4. **Firebase Functions Dependency**: `implementation("com.google.firebase:firebase-functions")` in `build.gradle.kts`. If `BackendApiService` never calls `httpsCallable()`, remove this dependency.
+4. **`app_icon_foreground.png` (1.68 MB)**: Still in `drawable/`. Referenced by `ic_launcher_foreground.xml`. Convert to WebP using Android Studio → Right-click → "Convert to WebP".
 
 ### MEDIUM Priority
-5. **`BackendApiService.kt` admin email default**: Line 98 `adminEmail: String = "m.k3shka@gmail.com"` — low risk as this is a function default that gets overridden, but should be removed.
+5. **Legacy firebase-database SDK**: `FirebaseBusinessSyncManager` (legacy one-time migration) still uses Realtime DB. After migration runs once on production, these files and the `firebase-database` dependency can be safely removed.
 
-6. **OWNER_EMAIL in `.env`**: Must be set locally by developer/CI. Not committed to Git.
-
-### LOW Priority
-7. **Manual Device Testing**: Full test matrix requires physical Android device with signed APK.
-8. **Firebase Data Cleanup**: All current Firestore data is test/development data. See Section 9 for cleanup plan.
+6. **OWNER_EMAIL in `.env`**: Must be set by developer locally. Not committed to Git (gitignored). Required for Admin security gate to work.
 
 ---
 
