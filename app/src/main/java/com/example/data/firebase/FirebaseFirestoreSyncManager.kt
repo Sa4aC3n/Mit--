@@ -67,7 +67,7 @@ object FirebaseFirestoreSyncManager {
     const val COL_REVIEWS = "reviews"
     const val COL_CONTRIBUTIONS = "contributions"
     const val COL_NOTIFICATIONS = "notifications"
-    const val COL_AUDIT_LOGS = "auditLogs"
+    const val COL_AUDIT_LOGS = "audit_logs"  // MUST match firestore.rules /audit_logs/{logId}
     const val COL_DISCOVERY_JOBS = "discoveryJobs"
     const val COL_SETTINGS = "settings"
 

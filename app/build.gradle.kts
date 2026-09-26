@@ -127,8 +127,10 @@ dependencies {
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
   implementation(libs.firebase.firestore)
-  implementation("com.google.firebase:firebase-functions")
-  implementation("com.google.firebase:firebase-storage")
+  // firebase-functions: REMOVED — BackendApiService uses Firestore Transaction, not Cloud Functions
+  // firebase-storage: REMOVED — no references found anywhere in codebase
+  // firebase-database: RETAINED — FirebaseBusinessSyncManager uses it for one-time Realtime DB→Firestore migration
+  implementation("com.google.firebase:firebase-database")
 
   // Uncomment ALL FOUR of the following dependencies together to use Firebase Auth and Google
   // Sign-In via Credential Manager:

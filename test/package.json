@@ -1,0 +1,20 @@
+{
+  "name": "dalil-mit3mr-security-tests",
+  "version": "1.0.0",
+  "description": "Firebase Security Rules Tests for Dalil Mit Ghamr — Spark Plan (no Cloud Functions)",
+  "scripts": {
+    "test": "jest --testEnvironment node --forceExit --verbose",
+    "test:emulator": "firebase emulators:exec --only firestore --project dalil-mit3mr \"npm test\""
+  },
+  "dependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "firebase": "^10.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  },
+  "jest": {
+    "testTimeout": 30000,
+    "testMatch": ["**/*.test.js"]
+  }
+}

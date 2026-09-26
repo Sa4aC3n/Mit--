@@ -95,13 +95,18 @@ service cloud.firestore {
       // Only approved reviews are visible to the public; author or admin can view draft/own
       allow read: if (resource != null && resource.data.status == 'APPROVED') || (isAuthenticated() && resource != null && resource.data.userId == request.auth.uid) || isAdmin();
 
-      // Authenticated users can write their own reviews with 1-5 rating validation
+      // Authenticated users can write their own reviews with initial PENDING status only
+      // They cannot set APPROVED status, approvedAt, approvedBy, or ownerReply on creation
       allow create: if isAuthenticated() &&
         request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'PENDING' &&
         request.resource.data.rating >= 1 &&
         request.resource.data.rating <= 5 &&
         request.resource.data.comment is string &&
-        request.resource.data.comment.size() > 0;
+        request.resource.data.comment.size() > 0 &&
+        (!('approvedAt' in request.resource.data) || request.resource.data.approvedAt == null) &&
+        (!('approvedBy' in request.resource.data) || request.resource.data.approvedBy == null) &&
+        (!('ownerReply' in request.resource.data) || request.resource.data.ownerReply == null);
 
       // Users can update their own comment/rating without elevating or changing review status
       allow update: if isAuthenticated() &&

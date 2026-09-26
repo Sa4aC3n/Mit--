@@ -7,7 +7,7 @@ import com.example.util.ArabicNormalizer
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.google.firebase.functions.FirebaseFunctions
+// NOTE: firebase-functions import removed — approveContribution uses Firestore Transaction directly
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -95,7 +95,7 @@ class BackendApiService {
         contributionId: String,
         moderatorNote: String?,
         adminUserId: String = "admin_super",
-        adminEmail: String = "m.k3shka@gmail.com",
+        adminEmail: String = "",  // SECURITY: Must be supplied by caller from FirebaseAuth.currentUser.email
         preloadedContribution: UserContributionEntity? = null
     ): BackendResponse<BusinessEntity?> = withContext(Dispatchers.IO) {
         val authResult = verifyAuthorization(authToken, "ADMIN")
