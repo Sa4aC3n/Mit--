@@ -46,7 +46,7 @@ object AiRecommendationEngine {
 
             var distanceKm: Double? = null
             var distanceBonus = 0.0
-            if (userLat != null && userLng != null && business.latitude != 0.0 && business.longitude != 0.0) {
+            if (userLat != null && userLng != null && business.hasValidCoordinates) {
                 distanceKm = calculateDistanceKm(userLat, userLng, business.latitude, business.longitude)
                 if (query.isNearestRequested || query.intent == "NEAREST") {
                     // Maximum 30 pts bonus for very close proximity (decreases by 5 pts per km)

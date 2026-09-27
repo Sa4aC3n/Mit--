@@ -20,8 +20,8 @@ object SourceConnectors {
         val rawAddress: String = "",
         val area: String = "",
         val city: String = "مدينة ميت غمر",
-        val latitude: Double = 30.7183,
-        val longitude: Double = 31.2568,
+        val latitude: Double? = null,   // null = no confirmed coordinates; never fabricate
+        val longitude: Double? = null,  // null = no confirmed coordinates; never fabricate
         val rawWebsite: String? = null,
         val rawFacebook: String? = null,
         val workingHours: String = "",

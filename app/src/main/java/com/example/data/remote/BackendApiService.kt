@@ -108,6 +108,7 @@ class BackendApiService {
 
         try {
             val publishedBusinessId = db.runTransaction { transaction ->
+                // ── 1. ALL READS (Must precede any writes in Firestore Transaction) ──
                 val contribRef = db.collection("contributions").document(contributionId)
                 val contribSnapshot = transaction.get(contribRef)
                 if (!contribSnapshot.exists()) {
@@ -118,6 +119,45 @@ class BackendApiService {
                     throw IllegalStateException("هذه المساهمة تم مراجعتها مسبقاً وليست في حالة PENDING.")
                 }
 
+                // Reservation 1: Contribution ID idempotency lock
+                val reservationContribRef = db.collection("business_reservations").document("contrib_$contributionId")
+                val contribResSnap = transaction.get(reservationContribRef)
+
+                // Reservation 2: Phone number deduplication lock
+                val rawPhone = contribSnapshot.getString("phone")?.trim()
+                val normalizedPhone = if (!rawPhone.isNullOrBlank()) {
+                    com.example.util.ArabicNormalizer.normalizePhone(rawPhone)
+                } else null
+                val phoneLockRef = if (!normalizedPhone.isNullOrBlank() && normalizedPhone.length >= 7) {
+                    db.collection("business_reservations").document("phone_$normalizedPhone")
+                } else null
+                val phoneResSnap = if (phoneLockRef != null) transaction.get(phoneLockRef) else null
+
+                // Reservation 3: Normalized Name + Area deduplication lock
+                val rawName = contribSnapshot.getString("name")?.trim() ?: ""
+                val rawArea = contribSnapshot.getString("area")?.trim() ?: "ميت غمر"
+                val normName = com.example.util.ArabicNormalizer.normalize(rawName)
+                val normArea = com.example.util.ArabicNormalizer.normalize(rawArea)
+                val nameAreaHash = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest("$normName|$normArea".toByteArray(Charsets.UTF_8))
+                    .joinToString("") { "%02x".format(it) }
+                val nameAreaLockRef = db.collection("business_reservations").document("name_area_$nameAreaHash")
+                val nameAreaResSnap = transaction.get(nameAreaLockRef)
+
+                // ── 2. VALIDATION (Reject duplicates before any write) ──────────
+                if (contribResSnap.exists()) {
+                    val alreadyPublished = contribResSnap.getString("publishedBusinessId")
+                    throw IllegalStateException("تم اعتماد هذه المساهمة بالفعل في نشاط: $alreadyPublished")
+                }
+                if (phoneResSnap != null && phoneResSnap.exists()) {
+                    val conflictBiz = phoneResSnap.getString("publishedBusinessId")
+                    throw IllegalStateException("يوجد نشاط مسجل بالفعل بنفس رقم الهاتف: $conflictBiz")
+                }
+                if (nameAreaResSnap.exists()) {
+                    val conflictBiz = nameAreaResSnap.getString("publishedBusinessId")
+                    throw IllegalStateException("يوجد نشاط مسجل بالفعل بنفس الاسم والمنطقة: $conflictBiz")
+                }
+
                 val bizId = if (!contribSnapshot.getString("businessId").isNullOrBlank()) {
                     contribSnapshot.getString("businessId")!!
                 } else {
@@ -125,6 +165,20 @@ class BackendApiService {
                 }
 
                 val now = System.currentTimeMillis()
+
+                // ── 3. ALL WRITES (Atomic multi-document commit) ───────────────
+                val reservationPayload = mapOf(
+                    "contributionId" to contributionId,
+                    "publishedBusinessId" to bizId,
+                    "approvedBy" to currentUid,
+                    "approvedAt" to now
+                )
+                transaction.set(reservationContribRef, reservationPayload)
+                if (phoneLockRef != null) {
+                    transaction.set(phoneLockRef, reservationPayload)
+                }
+                transaction.set(nameAreaLockRef, reservationPayload)
+
                 val bizRef = db.collection(FirebaseFirestoreSyncManager.COL_BUSINESSES).document(bizId)
 
                 val bizData = hashMapOf<String, Any?>(
@@ -134,8 +188,9 @@ class BackendApiService {
                     "area" to (contribSnapshot.getString("area") ?: "ميت غمر"),
                     "address" to (contribSnapshot.getString("address") ?: ""),
                     "phone" to (contribSnapshot.getString("phone") ?: ""),
-                    "lat" to (contribSnapshot.getDouble("lat") ?: 31.06),
-                    "lng" to (contribSnapshot.getDouble("lng") ?: 31.25),
+                    // Coordinates: only include if present in contribution — never fabricate
+                    "lat" to contribSnapshot.getDouble("lat"),
+                    "lng" to contribSnapshot.getDouble("lng"),
                     "description" to (contribSnapshot.getString("description") ?: ""),
                     "isPublished" to true,
                     "approvedContributionId" to contributionId,
@@ -196,7 +251,7 @@ class BackendApiService {
         contributionId: String,
         reason: String,
         adminUserId: String = "admin_super",
-        adminEmail: String = "m.k3shka@gmail.com"
+        adminEmail: String = ""
     ): BackendResponse<Boolean> = withContext(Dispatchers.IO) {
         val authResult = verifyAuthorization(authToken, "ADMIN")
         if (!authResult.success) {

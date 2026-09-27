@@ -1643,7 +1643,7 @@ private fun openWebsite(context: Context, websiteUrl: String) {
 
 private fun openMapDirections(context: Context, business: BusinessEntity) {
     try {
-        val uri = if (business.latitude != 0.0 && business.longitude != 0.0) {
+        val uri = if (business.hasValidCoordinates) {
             Uri.parse("https://www.google.com/maps/search/?api=1&query=${business.latitude},${business.longitude}")
         } else {
             Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(business.name + " " + business.address + " ميت غمر")}")

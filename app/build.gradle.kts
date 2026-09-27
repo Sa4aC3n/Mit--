@@ -23,25 +23,17 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
+  val customKeystore = System.getenv("KEYSTORE_PATH")?.let { file(it) }
+  val uploadKeystore = file("${rootDir}/my-upload-key.jks")
+  val hasReleaseKeystore = (customKeystore != null && customKeystore.exists()) || uploadKeystore.exists()
+
   signingConfigs {
-    create("release") {
-      val customKeystore = System.getenv("KEYSTORE_PATH")?.let { file(it) }
-      val uploadKeystore = file("${rootDir}/my-upload-key.jks")
-      val debugKeystore = file("${rootDir}/debug.keystore")
-      val targetKeystore = when {
-        customKeystore != null && customKeystore.exists() -> customKeystore
-        uploadKeystore.exists() -> uploadKeystore
-        else -> debugKeystore
-      }
-      storeFile = targetKeystore
-      if (targetKeystore == debugKeystore) {
-        storePassword = "android"
-        keyAlias = "androiddebugkey"
-        keyPassword = "android"
-      } else {
-        storePassword = System.getenv("STORE_PASSWORD") ?: "android"
+    if (hasReleaseKeystore) {
+      create("release") {
+        storeFile = if (customKeystore != null && customKeystore.exists()) customKeystore else uploadKeystore
+        storePassword = System.getenv("STORE_PASSWORD") ?: ""
         keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
-        keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+        keyPassword = System.getenv("KEY_PASSWORD") ?: ""
       }
     }
     create("debugConfig") {
@@ -58,14 +50,15 @@ android {
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
+      // STRICT: Never sign release with debug key. Unsigned if release keystore absent.
+      signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else null
       // Owner config injected from .env via Secrets Gradle Plugin (not hardcoded in source)
       buildConfigField("String", "OWNER_EMAIL", "\"${System.getenv("OWNER_EMAIL") ?: ""}\"")
       buildConfigField("String", "MASTER_PIN_HASH", "\"${System.getenv("MASTER_PIN_HASH") ?: ""}\"")
     }
     debug {
       signingConfig = signingConfigs.getByName("debugConfig")
-      buildConfigField("String", "OWNER_EMAIL", "\"${System.getenv("OWNER_EMAIL") ?: "m.k3shka@gmail.com"}\"")
+      buildConfigField("String", "OWNER_EMAIL", "\"${System.getenv("OWNER_EMAIL") ?: ""}\"")
       buildConfigField("String", "MASTER_PIN_HASH", "\"${System.getenv("MASTER_PIN_HASH") ?: ""}\"")
     }
   }
@@ -99,7 +92,6 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 dependencies {
   implementation(platform(libs.firebase.bom))
   // implementation("com.google.firebase:firebase-analytics")
-  implementation("com.google.firebase:firebase-database")
   implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
 
   implementation(platform(libs.androidx.compose.bom))

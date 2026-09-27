@@ -108,13 +108,29 @@ service cloud.firestore {
         (!('approvedBy' in request.resource.data) || request.resource.data.approvedBy == null) &&
         (!('ownerReply' in request.resource.data) || request.resource.data.ownerReply == null);
 
-      // Users can update their own comment/rating without elevating or changing review status
-      allow update: if isAuthenticated() &&
+      // Review Updates:
+      // Case 1: Admin can approve/reject, set approval metadata, or reply
+      // Case 2: Author can edit their own review, but it MUST revert to PENDING status
+      //         for re-moderation and cannot alter administrative fields
+      allow update: if (
+        isAdmin()
+      ) || (
+        isAuthenticated() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.userId == request.auth.uid &&
-        request.resource.data.status == resource.data.status &&
+        request.resource.data.businessId == resource.data.businessId &&
+        // Editing requires re-moderation: status is forced to PENDING
+        request.resource.data.status == 'PENDING' &&
         request.resource.data.rating >= 1 &&
-        request.resource.data.rating <= 5;
+        request.resource.data.rating <= 5 &&
+        request.resource.data.comment is string &&
+        request.resource.data.comment.size() > 0 &&
+        // Prevent user from setting or forging administrative fields
+        (!('approvedAt' in request.resource.data) || request.resource.data.approvedAt == null) &&
+        (!('approvedBy' in request.resource.data) || request.resource.data.approvedBy == null) &&
+        (!('ownerReply' in request.resource.data) || request.resource.data.ownerReply == resource.data.get('ownerReply', null)) &&
+        (!('ownerReplyAt' in request.resource.data) || request.resource.data.ownerReplyAt == resource.data.get('ownerReplyAt', null))
+      );
 
       allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }
@@ -124,6 +140,11 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isAdmin() && request.resource.data.actorId == request.auth.uid;
       allow update, delete: if false;
+    }
+
+    // 8. Business Reservations (Deduplication Locks for Concurrent Idempotency)
+    match /business_reservations/{lockKey} {
+      allow read, write: if isAdmin();
     }
 
     // 8. System Configurations & App Metadata (Public read, admin write via Admin SDK)

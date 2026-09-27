@@ -34,7 +34,10 @@ const path = require("path");
 // Setup
 // ============================================================
 
+jest.setTimeout(60000);
+
 let testEnv;
+let activeContexts = [];
 
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
@@ -48,14 +51,36 @@ beforeAll(async () => {
       port: 8080,
     },
   });
-});
+
+  // Patch RulesTestContextImpl.prototype.firestore to prevent "Firestore has already been started"
+  const dummyCtx = testEnv.unauthenticatedContext();
+  const proto = Object.getPrototypeOf(dummyCtx);
+  if (!proto._patchedForEmulator) {
+    const origFirestore = proto.firestore;
+    proto.firestore = function(settings) {
+      if (!this._cachedFirestore) {
+        this._cachedFirestore = origFirestore.call(this, settings);
+      }
+      return this._cachedFirestore;
+    };
+    proto._patchedForEmulator = true;
+  }
+}, 120000);
 
 afterAll(async () => {
-  await testEnv.cleanup();
-});
+  if (testEnv) {
+    await testEnv.cleanup();
+  }
+}, 30000);
 
 beforeEach(async () => {
-  await testEnv.clearFirestore();
+  if (testEnv) {
+    await testEnv.clearFirestore();
+  }
+});
+
+afterEach(async () => {
+  activeContexts = [];
 });
 
 // ============================================================
@@ -63,18 +88,37 @@ beforeEach(async () => {
 // ============================================================
 
 function unauth() {
-  return testEnv.unauthenticatedContext();
+  const ctx = testEnv.unauthenticatedContext();
+  activeContexts.push(ctx);
+  return ctx;
 }
 
 function user(uid = "user-123", extra = {}) {
-  return testEnv.authenticatedContext(uid, extra);
+  const ctx = testEnv.authenticatedContext(uid, extra);
+  activeContexts.push(ctx);
+  return ctx;
 }
 
 function admin(uid = "admin-uid") {
-  return testEnv.authenticatedContext(uid, { admin: true });
+  const ctx = testEnv.authenticatedContext(uid, { admin: true });
+  activeContexts.push(ctx);
+  return ctx;
 }
 
-async function seedBusiness(adminCtx, bizId, overrides = {}) {
+function parseSeedArgs(arg1, arg2, arg3) {
+  let docId, overrides;
+  if (typeof arg1 === "string") {
+    docId = arg1;
+    overrides = arg2 || {};
+  } else {
+    docId = arg2;
+    overrides = arg3 || {};
+  }
+  return { docId, overrides };
+}
+
+async function seedBusiness(arg1, arg2, arg3) {
+  const { docId, overrides } = parseSeedArgs(arg1, arg2, arg3);
   const data = {
     name: "مطعم السلام",
     categoryId: "cat_restaurants",
@@ -82,10 +126,13 @@ async function seedBusiness(adminCtx, bizId, overrides = {}) {
     isDeleted: false,
     ...overrides,
   };
-  await setDoc(doc(adminCtx.firestore(), "businesses", bizId), data);
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "businesses", docId), data);
+  });
 }
 
-async function seedContribution(adminCtx, contribId, overrides = {}) {
+async function seedContribution(arg1, arg2, arg3) {
+  const { docId, overrides } = parseSeedArgs(arg1, arg2, arg3);
   const data = {
     userId: "user-123",
     businessName: "نشاط تجريبي",
@@ -95,10 +142,13 @@ async function seedContribution(adminCtx, contribId, overrides = {}) {
     publishedBusinessId: null,
     ...overrides,
   };
-  await setDoc(doc(adminCtx.firestore(), "contributions", contribId), data);
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "contributions", docId), data);
+  });
 }
 
-async function seedReview(adminCtx, reviewId, overrides = {}) {
+async function seedReview(arg1, arg2, arg3) {
+  const { docId, overrides } = parseSeedArgs(arg1, arg2, arg3);
   const data = {
     userId: "user-123",
     businessId: "biz-1",
@@ -110,7 +160,30 @@ async function seedReview(adminCtx, reviewId, overrides = {}) {
     ownerReply: null,
     ...overrides,
   };
-  await setDoc(doc(adminCtx.firestore(), "reviews", reviewId), data);
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "reviews", docId), data);
+  });
+}
+
+async function seedAuditLog(arg1, arg2, arg3) {
+  const { docId, overrides } = parseSeedArgs(arg1, arg2, arg3);
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "audit_logs", docId), overrides);
+  });
+}
+
+async function seedUser(arg1, arg2, arg3) {
+  const { docId, overrides } = parseSeedArgs(arg1, arg2, arg3);
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "users", docId), overrides);
+  });
+}
+
+async function seedCategory(arg1, arg2, arg3) {
+  const { docId, overrides } = parseSeedArgs(arg1, arg2, arg3);
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "categories", docId), overrides);
+  });
 }
 
 // ============================================================
@@ -398,6 +471,71 @@ describe("reviews collection", () => {
     );
   });
 
+  test("FAIL — user editing an APPROVED review cannot keep status as APPROVED", async () => {
+    const adminCtx = admin();
+    await seedReview(adminCtx, "r-upd-keep-approved", {
+      userId: "user-123",
+      businessId: "biz-1",
+      status: "APPROVED",
+      approvedAt: Date.now(),
+      approvedBy: "admin-uid",
+      rating: 4,
+      comment: "تعليق سابق معتمد",
+    });
+    const ctx = user("user-123");
+    // Editing must revert to PENDING; keeping APPROVED is rejected by rules
+    await assertFails(
+      updateDoc(doc(ctx.firestore(), "reviews", "r-upd-keep-approved"), {
+        comment: "تعديل خبيث بعد الاعتماد",
+        status: "APPROVED",
+      })
+    );
+  });
+
+  test("PASS — user editing an APPROVED review reverts status to PENDING for re-review", async () => {
+    const adminCtx = admin();
+    await seedReview(adminCtx, "r-upd-revert-pending", {
+      userId: "user-123",
+      businessId: "biz-1",
+      status: "APPROVED",
+      approvedAt: Date.now(),
+      approvedBy: "admin-uid",
+      rating: 4,
+      comment: "تعليق سابق معتمد",
+    });
+    const ctx = user("user-123");
+    // Author resets status to PENDING and clears approval metadata
+    await assertSucceeds(
+      updateDoc(doc(ctx.firestore(), "reviews", "r-upd-revert-pending"), {
+        comment: "تعديل مشروع ينتظر إعادة المراجعة",
+        rating: 5,
+        userId: "user-123",
+        businessId: "biz-1",
+        status: "PENDING",
+        approvedAt: null,
+        approvedBy: null,
+      })
+    );
+  });
+
+  test("FAIL — regular user cannot forge or alter approvedBy / approvedAt", async () => {
+    const adminCtx = admin();
+    await seedReview(adminCtx, "r-upd-forge-admin", {
+      userId: "user-123",
+      businessId: "biz-1",
+      status: "PENDING",
+      rating: 3,
+      comment: "تعليق عادي",
+    });
+    const ctx = user("user-123");
+    await assertFails(
+      updateDoc(doc(ctx.firestore(), "reviews", "r-upd-forge-admin"), {
+        approvedBy: "fake-admin",
+        approvedAt: Date.now(),
+      })
+    );
+  });
+
   test("PASS — admin CAN update review status to APPROVED", async () => {
     const adminCtx = admin();
     await seedReview(adminCtx, "r-admin-approve", {
@@ -412,6 +550,20 @@ describe("reviews collection", () => {
       })
     );
   });
+
+  test("PASS — admin CAN reject review (status=REJECTED)", async () => {
+    const adminCtx = admin();
+    await seedReview(adminCtx, "r-admin-reject", {
+      userId: "user-123",
+      status: "PENDING",
+    });
+    await assertSucceeds(
+      updateDoc(doc(adminCtx.firestore(), "reviews", "r-admin-reject"), {
+        status: "REJECTED",
+        approvedBy: "admin-uid",
+      })
+    );
+  });
 });
 
 // ============================================================
@@ -420,8 +572,7 @@ describe("reviews collection", () => {
 
 describe("audit_logs collection", () => {
   test("FAIL — regular user CANNOT read audit logs", async () => {
-    const adminCtx = admin();
-    await setDoc(doc(adminCtx.firestore(), "audit_logs", "log-1"), {
+    await seedAuditLog("log-1", {
       actorId: "admin-uid",
       action: "test",
     });
@@ -432,8 +583,7 @@ describe("audit_logs collection", () => {
   });
 
   test("FAIL — unauthenticated user CANNOT read audit logs", async () => {
-    const adminCtx = admin();
-    await setDoc(doc(adminCtx.firestore(), "audit_logs", "log-2"), {
+    await seedAuditLog("log-2", {
       actorId: "admin-uid",
       action: "test",
     });
@@ -454,11 +604,11 @@ describe("audit_logs collection", () => {
   });
 
   test("PASS — admin CAN read audit logs", async () => {
-    const adminCtx = admin();
-    await setDoc(doc(adminCtx.firestore(), "audit_logs", "log-admin-read"), {
+    await seedAuditLog("log-admin-read", {
       actorId: "admin-uid",
       action: "read_test",
     });
+    const adminCtx = admin();
     await assertSucceeds(
       getDoc(doc(adminCtx.firestore(), "audit_logs", "log-admin-read"))
     );
@@ -486,11 +636,11 @@ describe("audit_logs collection", () => {
   });
 
   test("FAIL — nobody can update audit logs", async () => {
-    const adminCtx = admin("admin-uid");
-    await setDoc(doc(adminCtx.firestore(), "audit_logs", "log-update"), {
+    await seedAuditLog("log-update", {
       actorId: "admin-uid",
       action: "original",
     });
+    const adminCtx = admin("admin-uid");
     await assertFails(
       updateDoc(doc(adminCtx.firestore(), "audit_logs", "log-update"), {
         action: "tampered",
@@ -499,11 +649,11 @@ describe("audit_logs collection", () => {
   });
 
   test("FAIL — nobody can delete audit logs", async () => {
-    const adminCtx = admin("admin-uid");
-    await setDoc(doc(adminCtx.firestore(), "audit_logs", "log-delete"), {
+    await seedAuditLog("log-delete", {
       actorId: "admin-uid",
       action: "to_delete",
     });
+    const adminCtx = admin("admin-uid");
     await assertFails(
       deleteDoc(doc(adminCtx.firestore(), "audit_logs", "log-delete"))
     );
@@ -516,8 +666,7 @@ describe("audit_logs collection", () => {
 
 describe("users collection", () => {
   test("PASS — user CAN read their own profile", async () => {
-    const adminCtx = admin();
-    await setDoc(doc(adminCtx.firestore(), "users", "user-123"), {
+    await seedUser("user-123", {
       email: "test@test.com",
     });
     const ctx = user("user-123");
@@ -527,8 +676,7 @@ describe("users collection", () => {
   });
 
   test("FAIL — user CANNOT read another user's profile", async () => {
-    const adminCtx = admin();
-    await setDoc(doc(adminCtx.firestore(), "users", "other-user"), {
+    await seedUser("other-user", {
       email: "other@test.com",
     });
     const ctx = user("user-123");
@@ -538,10 +686,10 @@ describe("users collection", () => {
   });
 
   test("PASS — admin CAN read any user profile", async () => {
-    const adminCtx = admin();
-    await setDoc(doc(adminCtx.firestore(), "users", "any-user"), {
+    await seedUser("any-user", {
       email: "any@test.com",
     });
+    const adminCtx = admin();
     await assertSucceeds(
       getDoc(doc(adminCtx.firestore(), "users", "any-user"))
     );
@@ -554,8 +702,7 @@ describe("users collection", () => {
 
 describe("categories collection", () => {
   test("PASS — unauthenticated user CAN read categories", async () => {
-    const adminCtx = admin();
-    await setDoc(doc(adminCtx.firestore(), "categories", "cat-1"), {
+    await seedCategory("cat-1", {
       nameAr: "مطاعم",
     });
     const ctx = unauth();
@@ -657,5 +804,79 @@ describe("security attack scenarios", () => {
         isPublished: true,
       })
     );
+  });
+});
+
+// ============================================================
+// GROUP 8: /business_reservations & Concurrency / Deduplication
+// ============================================================
+
+describe("business_reservations collection & deduplication", () => {
+  test("FAIL — unauthenticated user cannot read or write to business_reservations", async () => {
+    const ctx = unauth();
+    await assertFails(
+      getDoc(doc(ctx.firestore(), "business_reservations", "phone_01012345678"))
+    );
+    await assertFails(
+      setDoc(doc(ctx.firestore(), "business_reservations", "phone_01012345678"), {
+        publishedBusinessId: "biz-1",
+      })
+    );
+  });
+
+  test("FAIL — regular user cannot read or write to business_reservations", async () => {
+    const ctx = user("user-123");
+    await assertFails(
+      getDoc(doc(ctx.firestore(), "business_reservations", "phone_01012345678"))
+    );
+    await assertFails(
+      setDoc(doc(ctx.firestore(), "business_reservations", "phone_01012345678"), {
+        publishedBusinessId: "biz-1",
+      })
+    );
+  });
+
+  test("PASS — admin CAN read and write reservation lock keys", async () => {
+    const adminCtx = admin();
+    const lockRef = doc(adminCtx.firestore(), "business_reservations", "phone_01012345678");
+    await assertSucceeds(
+      setDoc(lockRef, {
+        publishedBusinessId: "biz-1",
+        approvedBy: "admin-uid",
+        approvedAt: Date.now(),
+      })
+    );
+    await assertSucceeds(getDoc(lockRef));
+  });
+
+  test("CONCURRENCY / DEDUPLICATION — atomic reservation prevents duplicate approvals", async () => {
+    const adminCtx = admin();
+    const db = adminCtx.firestore();
+
+    const reservationRef = doc(db, "business_reservations", "phone_01011112222");
+
+    // Helper simulating atomic approval transaction with reservation lock
+    async function tryApproveWithLock(bizId, contribId) {
+      const { runTransaction } = require("firebase/firestore");
+      return runTransaction(db, async (transaction) => {
+        const lockSnap = await transaction.get(reservationRef);
+        if (lockSnap.exists()) {
+          throw new Error(`DUPLICATE_DETECTED: already published as ${lockSnap.data().publishedBusinessId}`);
+        }
+        transaction.set(reservationRef, {
+          contributionId: contribId,
+          publishedBusinessId: bizId,
+          approvedAt: Date.now(),
+        });
+        return bizId;
+      });
+    }
+
+    // First approval succeeds
+    const firstResult = await tryApproveWithLock("biz-first", "c-1");
+    expect(firstResult).toBe("biz-first");
+
+    // Second concurrent approval for same phone fails with duplicate error
+    await expect(tryApproveWithLock("biz-second", "c-2")).rejects.toThrow("DUPLICATE_DETECTED");
   });
 });

@@ -175,9 +175,6 @@ fun OwnerSecurityGateScreen(
                                     enteredPin = enteredPin.dropLast(1)
                                     pinErrorMessage = null
                                 }
-                            },
-                            onQuickOwnerUnlock = {
-                                enteredPin = AppSecurityManager.MASTER_PIN
                             }
                         )
                     }
@@ -381,8 +378,7 @@ private fun Stage2PinCodeEntry(
     pinErrorMessage: String?,
     onDigitClick: (String) -> Unit,
     onClearClick: () -> Unit,
-    onDeleteClick: () -> Unit,
-    onQuickOwnerUnlock: () -> Unit
+    onDeleteClick: () -> Unit
 ) {
     // Owner Identity Card
     Surface(

@@ -13,8 +13,11 @@
   "devDependencies": {
     "jest": "^29.0.0"
   },
+  "overrides": {
+    "undici": "^6.27.1"
+  },
   "jest": {
-    "testTimeout": 30000,
+    "testTimeout": 60000,
     "testMatch": ["**/*.test.js"]
   }
 }

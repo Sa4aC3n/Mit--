@@ -1,4 +1,4 @@
-package com.example.data.model
+﻿package com.example.data.model
 
 import androidx.room.Entity
 import androidx.room.Index
@@ -15,19 +15,19 @@ enum class BusinessSourceType(val displayNameAr: String, val defaultReliability:
     WEBSITE("Official Website", 95),
     YELLOW_PAGES("Yellow Pages & Public Directories", 80),
     INSTAGRAM("Instagram Business", 80),
-    USER("اقتراحات المستخدمين", 70),
-    ADMIN("إدخال وتدقيق المشرف", 100),
-    OTHER("مصادر محلية عامة", 75)
+    USER("Ø§Ù‚ØªØ±Ø§Ø­Ø§Øª Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ†", 70),
+    ADMIN("Ø¥Ø¯Ø®Ø§Ù„ ÙˆØªØ¯Ù‚ÙŠÙ‚ Ø§Ù„Ù…Ø´Ø±Ù", 100),
+    OTHER("Ù…ØµØ§Ø¯Ø± Ù…Ø­Ù„ÙŠØ© Ø¹Ø§Ù…Ø©", 75)
 }
 
 enum class DiscoverySourceType(val displayNameAr: String, val defaultReliability: Int) {
     GOOGLE_PLACES("Google Places / Maps", 90),
     FACEBOOK_PAGES("Facebook Business Pages", 85),
     YELLOW_PAGES("Yellow Pages & Public Directories", 80),
-    OFFICIAL_WEBSITE("الموقع الإلكتروني الرسمي", 95),
-    PUBLIC_LOCAL("المصادر والخرائط المحلية العامة", 75),
-    USER_CONTRIBUTION("اقتراحات المستخدمين والمجتمع", 70),
-    ADMIN_MANUAL("إدخال وتدقيق المشرف (Admin)", 100)
+    OFFICIAL_WEBSITE("Ø§Ù„Ù…ÙˆÙ‚Ø¹ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ Ø§Ù„Ø±Ø³Ù…ÙŠ", 95),
+    PUBLIC_LOCAL("Ø§Ù„Ù…ØµØ§Ø¯Ø± ÙˆØ§Ù„Ø®Ø±Ø§Ø¦Ø· Ø§Ù„Ù…Ø­Ù„ÙŠØ© Ø§Ù„Ø¹Ø§Ù…Ø©", 75),
+    USER_CONTRIBUTION("Ø§Ù‚ØªØ±Ø§Ø­Ø§Øª Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ† ÙˆØ§Ù„Ù…Ø¬ØªÙ…Ø¹", 70),
+    ADMIN_MANUAL("Ø¥Ø¯Ø®Ø§Ù„ ÙˆØªØ¯Ù‚ÙŠÙ‚ Ø§Ù„Ù…Ø´Ø±Ù (Admin)", 100)
 }
 
 /**
@@ -86,7 +86,7 @@ data class MergeHistoryEntity(
     val candidateJson: String,      // Snapshot of candidate
     val mergedFieldsSummary: String, // e.g. "Phone, Website, Facebook"
     val mergedAt: Long = System.currentTimeMillis(),
-    val mergedBy: String = "m.k3shka@gmail.com",
+    val mergedBy: String = "",  // must be set from Firebase Auth currentUser.uid â€” never hardcoded
     val isReverted: Boolean = false,
     val revertedAt: Long? = null
 )
@@ -124,24 +124,24 @@ data class SideBySideMergePreview(
 )
 
 enum class CandidateStatus(val displayNameAr: String, val colorHex: Long) {
-    NEW("جديد كلياً (New)", 0xFF10B981),
-    DEFINITE_DUPLICATE("مكرر مؤكد (Duplicate)", 0xFFEF4444),
-    LIKELY_DUPLICATE("مكرر محتمل جداً (Likely Duplicate)", 0xFFF59E0B),
-    POSSIBLE_DUPLICATE("تشابه بحاجة لمراجعة (Possible Duplicate)", 0xFF3B82F6),
-    CONFLICT("تعارض بيانات (Data Conflict)", 0xFF8B5CF6),
-    ENRICHED("نشاط مثرى (Enriched)", 0xFF06B6D4),
-    UPDATED("تحديث بيانات (Updated)", 0xFF14B8A6),
-    NEEDS_REVIEW("بحاجة لمراجعة دقيقة", 0xFFF97316),
-    APPROVED("معتمد ومضاف للقاعدة", 0xFF059669),
-    REJECTED("مرفوض", 0xFF6B7280)
+    NEW("Ø¬Ø¯ÙŠØ¯ ÙƒÙ„ÙŠØ§Ù‹ (New)", 0xFF10B981),
+    DEFINITE_DUPLICATE("Ù…ÙƒØ±Ø± Ù…Ø¤ÙƒØ¯ (Duplicate)", 0xFFEF4444),
+    LIKELY_DUPLICATE("Ù…ÙƒØ±Ø± Ù…Ø­ØªÙ…Ù„ Ø¬Ø¯Ø§Ù‹ (Likely Duplicate)", 0xFFF59E0B),
+    POSSIBLE_DUPLICATE("ØªØ´Ø§Ø¨Ù‡ Ø¨Ø­Ø§Ø¬Ø© Ù„Ù…Ø±Ø§Ø¬Ø¹Ø© (Possible Duplicate)", 0xFF3B82F6),
+    CONFLICT("ØªØ¹Ø§Ø±Ø¶ Ø¨ÙŠØ§Ù†Ø§Øª (Data Conflict)", 0xFF8B5CF6),
+    ENRICHED("Ù†Ø´Ø§Ø· Ù…Ø«Ø±Ù‰ (Enriched)", 0xFF06B6D4),
+    UPDATED("ØªØ­Ø¯ÙŠØ« Ø¨ÙŠØ§Ù†Ø§Øª (Updated)", 0xFF14B8A6),
+    NEEDS_REVIEW("Ø¨Ø­Ø§Ø¬Ø© Ù„Ù…Ø±Ø§Ø¬Ø¹Ø© Ø¯Ù‚ÙŠÙ‚Ø©", 0xFFF97316),
+    APPROVED("Ù…Ø¹ØªÙ…Ø¯ ÙˆÙ…Ø¶Ø§Ù Ù„Ù„Ù‚Ø§Ø¹Ø¯Ø©", 0xFF059669),
+    REJECTED("Ù…Ø±ÙÙˆØ¶", 0xFF6B7280)
 }
 
 enum class VerificationState(val displayNameAr: String) {
-    UNVERIFIED("غير موثق (Unverified)"),
-    PARTIALLY_VERIFIED("موثق جزئياً (Partially Verified)"),
-    VERIFIED("موثق ومعتمد بالكامل (Verified)"),
-    NEEDS_REVIEW("يتطلب إعادة التحقق (Needs Review)"),
-    POSSIBLY_CLOSED("محتمل إغلاقه نهائياً (Possibly Closed)")
+    UNVERIFIED("ØºÙŠØ± Ù…ÙˆØ«Ù‚ (Unverified)"),
+    PARTIALLY_VERIFIED("Ù…ÙˆØ«Ù‚ Ø¬Ø²Ø¦ÙŠØ§Ù‹ (Partially Verified)"),
+    VERIFIED("Ù…ÙˆØ«Ù‚ ÙˆÙ…Ø¹ØªÙ…Ø¯ Ø¨Ø§Ù„ÙƒØ§Ù…Ù„ (Verified)"),
+    NEEDS_REVIEW("ÙŠØªØ·Ù„Ø¨ Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„ØªØ­Ù‚Ù‚ (Needs Review)"),
+    POSSIBLY_CLOSED("Ù…Ø­ØªÙ…Ù„ Ø¥ØºÙ„Ø§Ù‚Ù‡ Ù†Ù‡Ø§Ø¦ÙŠØ§Ù‹ (Possibly Closed)")
 }
 
 data class FieldProvenance(
@@ -170,10 +170,10 @@ data class CandidateBusiness(
     val email: String? = null,
     val address: String = "",
     val area: String = "",
-    val city: String = "مدينة ميت غمر",
-    val governorate: String = "الدقهلية",
-    val latitude: Double = 30.7183,
-    val longitude: Double = 31.2568,
+    val city: String = "Ù…Ø¯ÙŠÙ†Ø© Ù…ÙŠØª ØºÙ…Ø±",
+    val governorate: String = "Ø§Ù„Ø¯Ù‚Ù‡Ù„ÙŠØ©",
+    val latitude: Double? = null,   // null = no confirmed coordinates; never fabricate
+    val longitude: Double? = null,  // null = no confirmed coordinates; never fabricate
     val googlePlaceId: String? = null,
     val website: String? = null,
     val facebookPage: String? = null,
@@ -251,7 +251,7 @@ data class SuggestedAreaItem(
     val nameAr: String,
     val type: String, // "VILLAGE", "NEIGHBORHOOD", "COMMERCIAL_STREET", "INDUSTRIAL_ZONE"
     val typeLabelAr: String,
-    val parentCenter: String = "مركز ميت غمر",
+    val parentCenter: String = "Ù…Ø±ÙƒØ² Ù…ÙŠØª ØºÙ…Ø±",
     val sampleBusinessName: String,
     val source: DiscoverySourceType = DiscoverySourceType.GOOGLE_PLACES,
     val confidence: Int = 85,
@@ -259,9 +259,9 @@ data class SuggestedAreaItem(
 )
 
 enum class QueryPriority(val labelAr: String, val weight: Int) {
-    HIGH("أولوية مرتفعة (High)", 1),
-    MEDIUM("أولوية متوسطة (Medium)", 2),
-    LOW("أولوية منخفضة (Low)", 3)
+    HIGH("Ø£ÙˆÙ„ÙˆÙŠØ© Ù…Ø±ØªÙØ¹Ø© (High)", 1),
+    MEDIUM("Ø£ÙˆÙ„ÙˆÙŠØ© Ù…ØªÙˆØ³Ø·Ø© (Medium)", 2),
+    LOW("Ø£ÙˆÙ„ÙˆÙŠØ© Ù…Ù†Ø®ÙØ¶Ø© (Low)", 3)
 }
 
 data class AreaCoverageStat(
@@ -275,12 +275,12 @@ data class AreaCoverageStat(
 )
 
 enum class JobStatus(val titleAr: String) {
-    QUEUED("في الانتظار"),
-    RUNNING("جاري العمل والجمع..."),
-    PAUSED("متوقف مؤقتاً"),
-    COMPLETED("اكتمل بنجاح"),
-    CANCELLED("ملغي"),
-    FAILED("فشل الاستعلام")
+    QUEUED("ÙÙŠ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±"),
+    RUNNING("Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø¹Ù…Ù„ ÙˆØ§Ù„Ø¬Ù…Ø¹..."),
+    PAUSED("Ù…ØªÙˆÙ‚Ù Ù…Ø¤Ù‚ØªØ§Ù‹"),
+    COMPLETED("Ø§ÙƒØªÙ…Ù„ Ø¨Ù†Ø¬Ø§Ø­"),
+    CANCELLED("Ù…Ù„ØºÙŠ"),
+    FAILED("ÙØ´Ù„ Ø§Ù„Ø§Ø³ØªØ¹Ù„Ø§Ù…")
 }
 
 @Entity(tableName = "discovery_jobs")
@@ -304,7 +304,7 @@ data class DiscoveryJob(
     val errorMessage: String? = null,
     val startedAt: Long = System.currentTimeMillis(),
     val completedAt: Long? = null,
-    val createdBy: String = "m.k3shka@gmail.com"
+    val createdBy: String = "",  // must be set from Firebase Auth currentUser.uid — never hardcoded
 )
 
 data class CoverageReportCategory(
@@ -341,8 +341,9 @@ data class GeographicDistrictItem(
     val id: String,
     val nameAr: String,
     val type: String, // "CITY_DISTRICT", "VILLAGE", "CENTER_MAIN_STREET"
-    val parentCity: String = "مركز ومدينة ميت غمر",
-    val latitude: Double = 30.7183,
-    val longitude: Double = 31.2568,
+    val parentCity: String = "Ù…Ø±ÙƒØ² ÙˆÙ…Ø¯ÙŠÙ†Ø© Ù…ÙŠØª ØºÙ…Ø±",
+    val latitude: Double? = null,   // null = no confirmed coordinates; never fabricate
+    val longitude: Double? = null,  // null = no confirmed coordinates; never fabricate
     val priority: Int = 1
 )
+

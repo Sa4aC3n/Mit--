@@ -44,7 +44,15 @@ data class BusinessEntity(
     val isDeleted: Boolean = false,
     val archivedAt: Long? = null,
     val approvedContributionId: String? = null
-)
+) {
+    /** True only if real, confirmed non-zero coordinates exist. */
+    val hasValidCoordinates: Boolean
+        get() = latitude != 0.0 && longitude != 0.0
+
+    /** Returns coordinates as a Pair, or null if coordinates are missing/unconfirmed. */
+    val coordinatesOrNull: Pair<Double, Double>?
+        get() = if (hasValidCoordinates) Pair(latitude, longitude) else null
+}
 
 @Entity(tableName = "reviews")
 data class ReviewEntity(

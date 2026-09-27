@@ -596,8 +596,7 @@ fun MetGhamrMapCanvas(
         //    Their address text remains visible in the list view.
         val projectedMarkers = remember(businesses) {
             businesses.mapNotNull { b ->
-                // Validate coordinates: both must be non-zero to be considered real
-                val hasCoords = (b.latitude != 0.0 && b.longitude != 0.0)
+                val hasCoords = b.hasValidCoordinates
                 if (!hasCoords) return@mapNotNull null
 
                 val lat = b.latitude
@@ -1896,7 +1895,7 @@ fun GoogleMapsShortcutsDialog(
 // Helpers for Navigation & Intent
 private fun openGoogleMapsNavigation(context: Context, business: BusinessEntity) {
     try {
-        val uri = if (business.latitude != 0.0 && business.longitude != 0.0) {
+        val uri = if (business.hasValidCoordinates) {
             Uri.parse("https://www.google.com/maps/search/?api=1&query=${business.latitude},${business.longitude}")
         } else {
             Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(business.name + " " + business.address + " ميت غمر")}")

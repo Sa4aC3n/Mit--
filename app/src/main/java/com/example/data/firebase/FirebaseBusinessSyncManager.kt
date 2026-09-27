@@ -117,8 +117,8 @@ object FirebaseBusinessSyncManager {
             val facebookUrl = snapshot.child("facebookUrl").getValue(String::class.java)
             val websiteUrl = snapshot.child("websiteUrl").getValue(String::class.java)
             
-            val latitude = snapshot.child("latitude").getValue(Double::class.java) ?: 30.7183
-            val longitude = snapshot.child("longitude").getValue(Double::class.java) ?: 31.2568
+            val latitude = snapshot.child("latitude").getValue(Double::class.java) ?: 0.0
+            val longitude = snapshot.child("longitude").getValue(Double::class.java) ?: 0.0
             val workingHours = snapshot.child("workingHours").getValue(String::class.java) ?: "09:00 ص - 10:00 م"
             val isOpenNow = snapshot.child("isOpenNow").getValue(Boolean::class.java) ?: true
             val isVerified = snapshot.child("isVerified").getValue(Boolean::class.java) ?: false
